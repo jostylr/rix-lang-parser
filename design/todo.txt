@@ -1,0 +1,181 @@
+# Language Implementation Prompts for Zeddy (Pratt Parser, JavaScript)
+
+A sequence of detailed prompts for building your custom mathematical language in JavaScript using a Pratt parser. Each step is modular and can be given to an LLM-based coding assistant (like Zeddy or ChatGPT).
+
+---
+
+## 1. Tokenizer / Lexer
+
+**Prompt:**
+
+Write a JavaScript function to tokenize a mathematical expression language supporting:
+
+* Words: Basically any letters. Not underscores or digits; they have separate menaings. Any unicode character that is not in one of the categories below or a space-like character. This includes excluding digits, math symbols, container symbols, delimiters, quotes. Basically, anything printed on a keyboard that is not a letter should be excluded.
+* Numbers (including decimals, scientific notation, intervals like 1:2, mixed numbers like 1..3/4). It should support negative numbers. It should support the E notation, such as 1.23E-4. This should also support decimals with a repeating part. Namely,  1.23#56 would indicate a repeating pattern of 56 so 1.2356565656...  Interval notation should be able to support all of that such as 1.1#3E7:2.344#0E8. Also 2.34 is fine as well. It can also be mixed with 1..3/4:1.23 being a mixed number in interval notation. A leading minus sign is fine.
+* Operators: +, -, *, /, ^, **, :=, ?=, :=:, :<:, :>:, :<=:, :>=:, =, <, >, <=, >=, :, _, |:, ||, |>, |?,    There will probably be more so make sure it is easy to add.
+* Delimiters: semi-colon and comma, maybe more
+* Containers: (, ), [, ], {, }
+* Quotes: double-quote and backtick. The single quote is to be handled differently. The backtick should support escaping characters like \n, \t, \r, \uXXXX, \xXX, \0, \', \", \\, \u{XXXXXX}, \u{XXXXXX} etc. The backtick should support interpolation like ${expression}. String literals are enclosed by N consecutive double quotes (`"`, `""`, `"""`, etc.), for any N >= 1.The string starts after the opening N quotes and ends at the next N consecutive double quotes. Any sequence of M consecutive double quotes where M < N is preserved literally within the string.No run of double quotes is collapsed or reduced inside the string—**all are kept as written**. If there are spaces between the opening delimiter and the first non-space character, or between the last non-space character and the closing delimiter,one space is trimmed from the resulting string if the character is a double-quote.
+
+
+The tokenizer should return an array of tokens with type and value.
+
+---
+
+## 2. Pratt Parser Core
+
+**Prompt:**
+
+Implement a modular Pratt parser in JavaScript. The parser should:
+
+* Register tokens and their nud/led functions and precedence levels
+* Parse arithmetic expressions (+, -, \*, /, parentheses, numbers, variables)
+* Produce an AST (abstract syntax tree) as output
+* Be extensible for new syntax and operators
+
+---
+
+## 3. AST Node Types & Basic Evaluation
+
+**Prompt:**
+
+Write classes for AST nodes: Literal, Variable, BinaryOp, UnaryOp, Assignment, FunctionCall, etc.
+Implement an evaluator that walks the AST, supports variable assignment and evaluation, and can be extended for intervals, functions, and blocks.
+
+---
+
+## 4. Arithmetic Extensions: Intervals, Mixed Numbers, and Rational Support
+
+**Prompt:**
+
+Extend the parser and evaluator to support:
+
+* Interval notation: a\:b
+* Mixed number notation: 1..3/4
+* Interval arithmetic (+, -, \*, /) using a rational interval arithmetic library
+* All numbers default to rationals (use previously built rational/interval library)
+  Ensure the AST and evaluation engine are updated accordingly.
+
+---
+
+## 5. Units and Algebraic Extension
+
+**Prompt:**
+
+Extend the parser and evaluator to support:
+
+* Number literals with units (e.g., 3.2~~m~~, 10~~m/s~~)
+* Arithmetic on units: addition/subtraction with compatible units, multiplication/division of units, unit simplification, and error on incompatible unit arithmetic
+* Unit conversion syntax (e.g., x\~\~mi/m\~)
+* Algebraic extensions: e.g., `i` for complex numbers, sqrt2 as a primitive, general algebraic numbers as extensions (attach rules for new primitives)
+* Storage of unit and algebraic rules as metadata on numbers and operations
+
+---
+
+## 6. Assignments and Equations/Inequalities
+
+**Prompt:**
+
+Add support for assignment/comparison operators:
+
+* := for assignment
+* \== for boolean equality
+* :=: for equation to solve
+* :<:, :>:, :<=:, :>=: for inequalities to solve
+  Parser should distinguish these and produce the correct AST node.
+
+---
+
+## 7. Function Definitions and Calls
+
+**Prompt:**
+
+Extend the parser and evaluator to support:
+
+* Function definitions with syntax: `f := (x, n:=5) -> x^n + 1`
+* Named and optional arguments
+* Function calls: `f(2, 3; n:=5)`
+* Pattern-matching function definitions
+* Functions as first-class values, assignable and passable
+
+---
+
+## 8. Literals and Collections
+
+**Prompt:**
+
+Add parsing and evaluation support for:
+
+* Arrays: `[1,2,3]`
+* Matrices: `[1,2;3,4]`
+* Sets: `{3, 4, 5}`
+* Maps/objects: `{a := 4, bc := 5}`
+* Tuples: `(3, 5, 6)`
+* Metadata on collections: `[fun, n:=5]`
+
+---
+
+## 9. Piping and Functional Operators
+
+**Prompt:**
+
+Implement piping syntax and semantics:
+
+* `|>` for feeding arrays as function arguments
+* `|>>` for map
+* `|>?` for filter
+* `|>:` for reduce
+  Ensure the evaluator correctly applies these to arrays, sets, sequences, and other constructs. Support all sequence literal operators (`|+`, `|*`, `|:`, `|>`, `|?`, etc).
+
+---
+
+## 10. Blocks, Statements, and Code Control
+
+**Prompt:**
+
+Implement code blocks:
+
+* `{{ ... }}` for assignable/multi-statement code blocks
+* Support code blocks as function arguments, in `If`/`Else`, and in assignment
+* Semicolon (;) as statement terminator
+* Handle block scope and result as last statement's value
+* Support passing and returning code blocks
+
+---
+
+## 11. Error Handling and Metadata
+
+**Prompt:**
+
+Implement error handling:
+
+* Return null or throw error as appropriate
+* Allow try/catch block constructs
+* Support warnings stack for recoverable errors
+* Enable attaching and accessing metadata to objects/functions using `.property` and `_key` notation
+
+---
+
+## 12. Real Numbers as Oracles
+
+**Prompt:**
+
+Implement support for real numbers as oracles:
+
+* Define an oracle as a function or object that, given an interval and tolerance, returns (success, interval) as specified in the mathematical oracle definition
+* Oracles should be able to represent rationals, algebraic numbers, and other real numbers
+* Arithmetic operations on oracles should yield new oracles (addition, multiplication, etc.)
+* Metadata for the oracle should include known "Yes" intervals and approximation history
+* Evaluation and conversion from oracle to interval/rational with specified tolerance
+
+---
+
+## 13. Testing, Debugging, and Extensibility
+
+**Prompt:**
+
+Build a suite of tests and debug utilities for the parser and evaluator:
+
+* Unit tests for every construct (arithmetic, intervals, assignments, functions, piping, blocks, units, oracles, etc.)
+* Debug/trace output for stepwise parsing and evaluation
+* Easy way to add new tokens/operators, AST node types, and evaluation logic for future extensions

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>MathLang Browser REPL</title>
+        <style>
+            body {
+                font-family: sans-serif;
+                max-width: 700px;
+                margin: 2em auto;
+                background: #fafafd;
+            }
+            #repl-area {
+                background: #222;
+                color: #eee;
+                padding: 1em;
+                border-radius: 8px;
+                min-height: 300px;
+                white-space: pre-wrap;
+            }
+            #input-box {
+                width: 100%;
+                font-size: 1.1em;
+                margin-top: 1em;
+            }
+            #controls {
+                margin: 1em 0;
+            }
+            #output {
+                margin-top: 2em;
+            }
+            .cmd {
+                color: #7af;
+            }
+            .err {
+                color: #fa7;
+            }
+            .result {
+                color: #0fa;
+            }
+            #save-block {
+                margin-top: 2em;
+                display: none;
+            }
+            #copy-btn {
+                margin-top: 0.5em;
+            }
+        </style>
+    </head>
+    <body>
+        <h2>MathLang Browser REPL</h2>
+        <div id="repl-area"></div>
+        <textarea
+            id="input-box"
+            rows="2"
+            placeholder="Type code here..."
+        ></textarea>
+        <div id="controls">
+            <button id="run-btn">Run (Enter)</button>
+            <button id="exit-btn">Exit</button>
+        </div>
+        <div id="output"></div>
+        <div id="save-block">
+            <strong>Session Transcript:</strong>
+            <pre
+                id="session-code"
+                style="
+                    background: #eee;
+                    color: #222;
+                    border: 1px solid #ccc;
+                    padding: 1em;
+                    border-radius: 6px;
+                    overflow: auto;
+                "
+            ></pre>
+            <button id="copy-btn">Copy to Clipboard</button>
+        </div>
+        <script type="module" src="./browser.js"></script>
+    </body>
+</html>

@@ -1,0 +1,68 @@
+# Node & Bun dependencies
+node_modules/
+bun.lockb
+
+# Build outputs
+dist/
+build/
+*.log
+
+# TypeScript
+*.tsbuildinfo
+
+# Test output
+coverage/
+.nyc_output/
+*.lcov
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# macOS Finder settings
+Icon?
+._*
+
+# macOS metadata
+.Spotlight-V100
+.Trashes
+
+# VSCode settings & temp
+.vscode/
+.history/
+*.code-workspace
+
+# JetBrains IDEs
+.idea/
+*.iml
+
+# Other editors
+*.sublime-workspace
+*.sublime-project
+
+# npm package output
+*.tgz
+
+# Local env files
+.env
+.env.*
+!.env.example
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+bun-debug.log*
+
+# Misc
+*.swp
+*.tmp
+*.bak
+
+# Bun test cache (optional, if used)
+.bun-test-cache/
+
+# Optional: ignore your custom test snapshots or config if you use them
+# __snapshots__/
+# bunfig.toml
