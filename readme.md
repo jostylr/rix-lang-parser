@@ -41,7 +41,7 @@ a:b:%4                          // Pick 4 random points in [a,b]
 SIN(x; n:=4)                    // System function with named argument
 x ?= 3                          // Boolean test: is x equal to 3?
 x^2 :<: 4                       // Inequality to solve
-
+```
 
 ## Tokenization and Parsing
 	•	Identifiers:

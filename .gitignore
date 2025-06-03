@@ -66,3 +66,6 @@ bun-debug.log*
 # Optional: ignore your custom test snapshots or config if you use them
 # __snapshots__/
 # bunfig.toml
+
+# Custom ignore folder
+ignore/
