@@ -2,7 +2,7 @@ This is the spec document for tokenizing a given language fragment in JavaScript
 
 The types to be produced are Identifier, Number, Symbol, String
 
-Spaces stop
+The tokens should return, in addition to other properties, also the position of the start of the original text, the start of the value, and the end of the match. This should be 0-based and done so that slicing in JavaScript with a start and then end would produce the correct text.
 
 Token Types
 -----------

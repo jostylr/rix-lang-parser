@@ -37,7 +37,8 @@ function tokenize(input) {
             tokens.push({
                 type: 'End',
                 original: input.slice(startPos),
-                value: null
+                value: null,
+                pos: [startPos, startPos, input.length]
             });
             break;
         }
@@ -63,6 +64,12 @@ function tokenize(input) {
             // Include whitespace from startPos in the original
             const whitespace = input.slice(startPos, position);
             token.original = whitespace + token.original;
+            // Update pos to account for whitespace - keep value position as set by token creators
+            token.pos[0] = startPos;
+            // Don't override pos[1] for strings, as they set it correctly for delimiter handling
+            if (token.type !== 'String') {
+                token.pos[1] = position;
+            }
             tokens.push(token);
             position += token.original.length - whitespace.length;
         } else {
@@ -76,7 +83,8 @@ function tokenize(input) {
         tokens.push({
             type: 'End',
             original: '',
-            value: null
+            value: null,
+            pos: [input.length, input.length, input.length]
         });
     }
     
@@ -93,7 +101,8 @@ function tryMatchString(input, position) {
             type: 'String',
             original: lineCommentMatch[0],
             value: lineCommentMatch[1],
-            kind: 'comment'
+            kind: 'comment',
+            pos: [position, position + 1, position + lineCommentMatch[0].length]
         };
     }
     
@@ -108,7 +117,8 @@ function tryMatchString(input, position) {
                 type: 'String',
                 original: match[0],
                 value: match[1],
-                kind: 'comment'
+                kind: 'comment',
+                pos: [position, position + blockCommentMatch[0].length, position + match[0].length]
             };
         }
         // If we reach here, block comment was not closed - throw error
@@ -132,7 +142,8 @@ function tryMatchString(input, position) {
                     type: 'String',
                     original: original,
                     value: content,
-                    kind: 'quote'
+                    kind: 'quote',
+                    pos: [position, position + quoteCount, searchPos + quoteCount]
                 };
             }
             searchPos++;
@@ -157,7 +168,8 @@ function tryMatchString(input, position) {
                     type: 'String',
                     original: original,
                     value: content,
-                    kind: 'backtick'
+                    kind: 'backtick',
+                    pos: [position, position + backtickCount, searchPos + backtickCount]
                 };
             }
             searchPos++;
@@ -174,12 +186,21 @@ function tryMatchString(input, position) {
             type: 'String',
             original: unitChangeMatch[0],
             value: unitChangeMatch[1],
-            kind: 'unit change'
+            kind: 'unit change',
+            pos: [position, position + 2, position + unitChangeMatch[0].length]
         };
     }
     
-    // Check for unmatched ~~ without closing ~ (only if we see ~~)
-    if (remaining.match(/^~~/) && !remaining.match(/^~~[^~\s]*~/)) {
+    // Check for invalid unit change patterns with spaces
+    const invalidUnitChangeMatch = remaining.match(/^~~[^~]*\s[^~]*~/);
+    if (invalidUnitChangeMatch) {
+        const remainder = input.slice(position);
+        throw new Error(`Invalid unit change format. Spaces not allowed in unit change. Remainder: "${remainder}" at position ${position}`);
+    }
+    
+    // Check for unmatched ~~ without closing ~ - but only if we have content after ~~
+    // that looks like it should be a unit change (not just whitespace or other symbols)
+    if (remaining.match(/^~~[^~\s]/) && !remaining.match(/^~~[^~\s]*~/)) {
         const remainder = input.slice(position);
         throw new Error(`Delimiter unmatched. Need closing tilde. Remainder: "${remainder}" at position ${position}`);
     }
@@ -203,17 +224,19 @@ function tryMatchNumber(input, position) {
         return {
             type: 'Number',
             original: match[0],
-            value: match[0]
+            value: match[0],
+            pos: [position, position, position + match[0].length]
         };
     }
     
     // Scientific notation with various bases (including leading decimal)
-    match = remaining.match(/^-?(?:\d+(?:\.\d+)?(?:#\d+)?|\.\d+(?:#\d+)?|\d+\.\.\d+\/\d+|\d+\/\d+|\d+\.\d+|\.\d+|\d+)E[+-]?\d+(?:~[^~\s]+~)?/);
+    match = remaining.match(/^-?(?:\d+(?:\.\d+)?(?:#\d+)?|\.\d+(?:#\d+)?|\d+\.\.\d+\/\d+|\d+\/\d+|\d+\.\d+|\.\d+|\d+)[Ee][+-]?\d+(?:~[^~\s]+~)?/);
     if (match) {
         return {
             type: 'Number',
             original: match[0],
-            value: match[0]
+            value: match[0],
+            pos: [position, position, position + match[0].length]
         };
     }
     
@@ -223,7 +246,8 @@ function tryMatchNumber(input, position) {
         return {
             type: 'Number',
             original: match[0],
-            value: match[0]
+            value: match[0],
+            pos: [position, position, position + match[0].length]
         };
     }
     
@@ -233,7 +257,8 @@ function tryMatchNumber(input, position) {
         return {
             type: 'Number',
             original: match[0],
-            value: match[0]
+            value: match[0],
+            pos: [position, position, position + match[0].length]
         };
     }
     
@@ -243,7 +268,8 @@ function tryMatchNumber(input, position) {
         return {
             type: 'Number',
             original: match[0],
-            value: match[0]
+            value: match[0],
+            pos: [position, position, position + match[0].length]
         };
     }
     
@@ -253,7 +279,8 @@ function tryMatchNumber(input, position) {
         return {
             type: 'Number',
             original: match[0],
-            value: match[0]
+            value: match[0],
+            pos: [position, position, position + match[0].length]
         };
     }
     
@@ -263,7 +290,8 @@ function tryMatchNumber(input, position) {
         return {
             type: 'Number',
             original: match[0],
-            value: match[0]
+            value: match[0],
+            pos: [position, position, position + match[0].length]
         };
     }
     
@@ -273,7 +301,8 @@ function tryMatchNumber(input, position) {
         return {
             type: 'Number',
             original: match[0],
-            value: match[0]
+            value: match[0],
+            pos: [position, position, position + match[0].length]
         };
     }
     
@@ -283,7 +312,8 @@ function tryMatchNumber(input, position) {
         return {
             type: 'Number',
             original: match[0],
-            value: match[0]
+            value: match[0],
+            pos: [position, position, position + match[0].length]
         };
     }
     
@@ -293,7 +323,8 @@ function tryMatchNumber(input, position) {
         return {
             type: 'Number',
             original: match[0],
-            value: match[0]
+            value: match[0],
+            pos: [position, position, position + match[0].length]
         };
     }
     
@@ -303,7 +334,8 @@ function tryMatchNumber(input, position) {
         return {
             type: 'Number',
             original: match[0],
-            value: match[0]
+            value: match[0],
+            pos: [position, position, position + match[0].length]
         };
     }
     
@@ -313,7 +345,8 @@ function tryMatchNumber(input, position) {
         return {
             type: 'Number',
             original: match[0],
-            value: match[0]
+            value: match[0],
+            pos: [position, position, position + match[0].length]
         };
     }
     
@@ -323,7 +356,8 @@ function tryMatchNumber(input, position) {
         return {
             type: 'Number',
             original: match[0],
-            value: match[0]
+            value: match[0],
+            pos: [position, position, position + match[0].length]
         };
     }
     
@@ -333,7 +367,8 @@ function tryMatchNumber(input, position) {
         return {
             type: 'Number',
             original: match[0],
-            value: match[0]
+            value: match[0],
+            pos: [position, position, position + match[0].length]
         };
     }
     
@@ -343,7 +378,8 @@ function tryMatchNumber(input, position) {
         return {
             type: 'Number',
             original: match[0],
-            value: match[0]
+            value: match[0],
+            pos: [position, position, position + match[0].length]
         };
     }
     
@@ -380,7 +416,8 @@ function tryMatchIdentifier(input, position) {
         type: 'Identifier',
         original: original,
         value: value,
-        kind: kind
+        kind: kind,
+        pos: [position, position, position + length]
     };
 }
 
@@ -393,7 +430,8 @@ function tryMatchSymbol(input, position) {
             return {
                 type: 'Symbol',
                 original: symbol,
-                value: symbol
+                value: symbol,
+                pos: [position, position, position + symbol.length]
             };
         }
     }
@@ -406,7 +444,8 @@ function tryMatchSymbol(input, position) {
             return {
                 type: 'Symbol',
                 original: char,
-                value: char
+                value: char,
+                pos: [position, position, position + 1]
             };
         }
     }
