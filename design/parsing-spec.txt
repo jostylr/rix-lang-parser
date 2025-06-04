@@ -10,22 +10,14 @@ I want to build the parser, specifically using a Pratt parser approach, to gener
 Requirements:
 	•	Support for all RiX operators, including custom assignment (:=), equality/boolean (?=, =), equations to solve (:=:, :>:, etc.), arithmetic, exponentiation (^, **), piping, interval, mixed numbers, and more.
 	•	Operator precedence and associativity must be fully specifiable.
-	•	AST nodes should clearly represent all constructs: numbers, identifiers, intervals, mixed numbers, function calls/definitions, assignments, systems of equations, etc.
+	•	This parsing should focus on producing the trees. Further refining identifiers, numbers, etc should be held off, though System identifiers should be examined for being more than an identifier.
 	•	Extensible design to allow future operators and features.
 	•	Output should be an Abstract Syntax Tree (AST) suitable for later evaluation or further transformation.
-
-My Ask:
-
-Can you help design a prompt (or step-by-step breakdown) for building a Pratt parser in JavaScript for RiX, including:
-	•	How to structure operator precedence/associativity tables.
-	•	How to design nud (null denotation) and led (left denotation) parselets for the various token types.
-	•	Best practices for AST node construction and extensibility.
-	•	Any sample code patterns or references that are particularly suitable for mathematical and DSL-style languages like RiX.
 
 ⸻
 
 In summary:
-I am looking for guidance (and a prompt) to generate a robust Pratt parser for RiX, starting from my tokenizer, to output clear ASTs for all supported syntax.
+I am looking for a robust Pratt parser for RiX, starting from my tokenizer, to output clear ASTs for all supported syntax.
 
 Here’s a succinct summary of your RiX language’s:
 	•	Operators and symbols (with notes on associativity and intended use)
