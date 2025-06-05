@@ -2,7 +2,7 @@
 
 ## Overview
 
-The RiX parser is a Pratt parser implementation that converts tokenized RiX code into Abstract Syntax Trees (ASTs). It handles the full spectrum of RiX language features including mathematical expressions, assignments, function calls, pipe operations, and more.
+The RiX parser is a Pratt parser implementation that converts tokenized RiX code into Abstract Syntax Trees (ASTs). It handles the full spectrum of RiX language features including mathematical expressions, assignments, function calls, pipe operations, metadata annotations, and more.
 
 ## Architecture
 
@@ -228,6 +228,20 @@ Represents set literals:
 }
 ```
 
+#### WithMetadata
+Represents arrays with metadata annotations using `:=` syntax:
+```javascript
+{
+    type: "WithMetadata",
+    primary: ASTNode,       // Primary element (first non-metadata element)
+    metadata: object,       // Key-value pairs of metadata
+    pos: [start, delim, end],
+    original: string
+}
+```
+
+The `WithMetadata` node is created when an array contains any `:=` assignments. The `primary` field contains the first non-metadata element (or an empty Array node if only metadata is present). The `metadata` field is an object where keys are metadata property names and values are AST nodes representing the assigned expressions.
+
 #### Grouping
 Represents parenthesized expressions:
 ```javascript
@@ -248,6 +262,99 @@ Represents property/array access:
     property: ASTNode,      // Property/index expression
     pos: [start, delim, end],
     original: string
+}
+```
+
+## Metadata and Property Annotations
+
+The parser supports metadata annotations within array syntax using the `:=` operator. When an array contains key-value pairs with `:=`, it creates a `WithMetadata` node instead of a regular `Array` node.
+
+### Syntax
+
+```javascript
+[object, key := value, ...]
+```
+
+### Rules
+
+1. **Metadata Detection**: If any `:=` assignment is found within array brackets, the entire construct becomes a `WithMetadata` node
+2. **Primary Element**: The first non-metadata element becomes the `primary` property
+3. **Single Primary**: Only one non-metadata element is allowed when metadata is present
+4. **Metadata Keys**: Can be identifiers (user or system) or string literals
+5. **Metadata Values**: Can be any valid expression
+6. **Array Primary**: To use an array as primary, wrap it: `[[1,2,3], key := value]`
+
+### Examples
+
+#### Basic Metadata
+```javascript
+// Input: [obj, name := "foo"]
+{
+    type: "WithMetadata",
+    primary: { type: "UserIdentifier", name: "obj" },
+    metadata: {
+        name: { type: "String", value: "foo", kind: "quote" }
+    }
+}
+```
+
+#### Multiple Metadata Properties
+```javascript
+// Input: [data, size := 10, active := true, version := 1.2]
+{
+    type: "WithMetadata", 
+    primary: { type: "UserIdentifier", name: "data" },
+    metadata: {
+        size: { type: "Number", value: "10" },
+        active: { type: "UserIdentifier", name: "true" },
+        version: { type: "Number", value: "1.2" }
+    }
+}
+```
+
+#### Array as Primary Element
+```javascript
+// Input: [[1, 2, 3], name := "numbers", count := 3]
+{
+    type: "WithMetadata",
+    primary: {
+        type: "Array",
+        elements: [
+            { type: "Number", value: "1" },
+            { type: "Number", value: "2" },
+            { type: "Number", value: "3" }
+        ]
+    },
+    metadata: {
+        name: { type: "String", value: "numbers", kind: "quote" },
+        count: { type: "Number", value: "3" }
+    }
+}
+```
+
+#### String Keys
+```javascript
+// Input: [obj, "display-name" := "My Object", "created-at" := timestamp]
+{
+    type: "WithMetadata",
+    primary: { type: "UserIdentifier", name: "obj" },
+    metadata: {
+        "display-name": { type: "String", value: "My Object", kind: "quote" },
+        "created-at": { type: "UserIdentifier", name: "timestamp" }
+    }
+}
+```
+
+#### Metadata Only
+```javascript
+// Input: [name := "config", version := 2]
+{
+    type: "WithMetadata",
+    primary: { type: "Array", elements: [] },
+    metadata: {
+        name: { type: "String", value: "config", kind: "quote" },
+        version: { type: "Number", value: "2" }
+    }
 }
 ```
 
@@ -368,6 +475,23 @@ For specialized constructs, you can create custom node types by modifying the pa
 }
 ```
 
+### Metadata Annotation
+```javascript
+// Input: "[matrix, rows := 3, cols := 4, name := \"transformation\"];"
+{
+    type: "Statement",
+    expression: {
+        type: "WithMetadata",
+        primary: { type: "UserIdentifier", name: "matrix" },
+        metadata: {
+            rows: { type: "Number", value: "3" },
+            cols: { type: "Number", value: "4" },
+            name: { type: "String", value: "transformation", kind: "quote" }
+        }
+    }
+}
+```
+
 ## Error Handling
 
 The parser provides detailed error messages with position information:
@@ -384,6 +508,7 @@ Common error scenarios:
 - **Unmatched delimiters**: Missing closing parentheses, brackets, or braces
 - **Unexpected tokens**: Invalid syntax or token sequences
 - **Expression termination**: Incomplete expressions at statement boundaries
+- **Mixed metadata**: Cannot mix multiple array elements with metadata assignments
 
 ## Position Tracking
 

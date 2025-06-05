@@ -321,10 +321,42 @@ class Parser {
         this.advance(); // consume '['
         
         const elements = [];
+        let hasMetadata = false;
+        let primaryElement = null;
+        const metadataMap = {};
+        let nonMetadataCount = 0;
         
         if (this.current.value !== ']') {
             do {
-                elements.push(this.parseExpression(0));
+                const element = this.parseExpression(0);
+                
+                // Check if this is a metadata assignment (key := value)
+                if (element.type === 'BinaryOperation' && element.operator === ':=') {
+                    hasMetadata = true;
+                    // Extract the key from the left side
+                    let key;
+                    if (element.left.type === 'UserIdentifier') {
+                        key = element.left.name;
+                    } else if (element.left.type === 'SystemIdentifier') {
+                        key = element.left.name;
+                    } else if (element.left.type === 'String') {
+                        key = element.left.value;
+                    } else {
+                        this.error('Metadata key must be an identifier or string');
+                    }
+                    metadataMap[key] = element.right;
+                } else {
+                    // Regular array element
+                    nonMetadataCount++;
+                    if (hasMetadata) {
+                        this.error('Cannot mix array elements with metadata - use nested array syntax like [[1,2,3], key := value]');
+                    }
+                    if (nonMetadataCount === 1) {
+                        primaryElement = element;
+                    }
+                    elements.push(element);
+                }
+                
                 if (this.current.value === ',') {
                     this.advance();
                 } else {
@@ -333,11 +365,31 @@ class Parser {
             } while (this.current.value !== ']' && this.current.type !== 'End');
         }
         
+        // Check if we have metadata and multiple non-metadata elements
+        if (hasMetadata && nonMetadataCount > 1) {
+            this.error('Cannot mix array elements with metadata - use nested array syntax like [[1,2,3], key := value]');
+        }
+        
         if (this.current.value !== ']') {
             this.error('Expected closing bracket');
         }
         this.advance(); // consume ']'
         
+        // If we found metadata annotations, create a WithMetadata node
+        if (hasMetadata) {
+            return this.createNode('WithMetadata', {
+                primary: primaryElement || this.createNode('Array', {
+                    elements: [],
+                    pos: startToken.pos,
+                    original: startToken.original
+                }),
+                metadata: metadataMap,
+                pos: startToken.pos,
+                original: startToken.original
+            });
+        }
+        
+        // Otherwise, return a regular Array node
         return this.createNode('Array', {
             elements: elements,
             pos: startToken.pos,

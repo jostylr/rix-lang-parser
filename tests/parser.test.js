@@ -317,6 +317,148 @@ describe("RiX Parser", () => {
         });
     });
 
+    describe("Metadata and Property Annotations", () => {
+        test("simple metadata annotation", () => {
+            const ast = parseCode('[obj, name := "foo"];');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'WithMetadata',
+                    primary: { type: 'UserIdentifier', name: 'obj' },
+                    metadata: {
+                        name: { type: 'String', value: 'foo', kind: 'quote' }
+                    }
+                }
+            }]);
+        });
+
+        test("multiple metadata annotations", () => {
+            const ast = parseCode('[obj, name := "foo", version := 1.2, active := true];');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'WithMetadata',
+                    primary: { type: 'UserIdentifier', name: 'obj' },
+                    metadata: {
+                        name: { type: 'String', value: 'foo', kind: 'quote' },
+                        version: { type: 'Number', value: '1.2' },
+                        active: { type: 'UserIdentifier', name: 'true' }
+                    }
+                }
+            }]);
+        });
+
+        test("metadata with expression values", () => {
+            const ast = parseCode('[data, size := 2 + 3, factor := x * y];');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'WithMetadata',
+                    primary: { type: 'UserIdentifier', name: 'data' },
+                    metadata: {
+                        size: {
+                            type: 'BinaryOperation',
+                            operator: '+',
+                            left: { type: 'Number', value: '2' },
+                            right: { type: 'Number', value: '3' }
+                        },
+                        factor: {
+                            type: 'BinaryOperation',
+                            operator: '*',
+                            left: { type: 'UserIdentifier', name: 'x' },
+                            right: { type: 'UserIdentifier', name: 'y' }
+                        }
+                    }
+                }
+            }]);
+        });
+
+        test("metadata with system identifier keys", () => {
+            const ast = parseCode('[matrix, ROWS := 3, COLS := 4];');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'WithMetadata',
+                    primary: { type: 'UserIdentifier', name: 'matrix' },
+                    metadata: {
+                        ROWS: { type: 'Number', value: '3' },
+                        COLS: { type: 'Number', value: '4' }
+                    }
+                }
+            }]);
+        });
+
+        test("metadata with string keys", () => {
+            const ast = parseCode('[obj, "display-name" := "My Object", "created-at" := timestamp];');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'WithMetadata',
+                    primary: { type: 'UserIdentifier', name: 'obj' },
+                    metadata: {
+                        "display-name": { type: 'String', value: 'My Object', kind: 'quote' },
+                        "created-at": { type: 'UserIdentifier', name: 'timestamp' }
+                    }
+                }
+            }]);
+        });
+
+        test("metadata only (no primary element)", () => {
+            const ast = parseCode('[name := "config", version := 2];');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'WithMetadata',
+                    primary: {
+                        type: 'Array',
+                        elements: []
+                    },
+                    metadata: {
+                        name: { type: 'String', value: 'config', kind: 'quote' },
+                        version: { type: 'Number', value: '2' }
+                    }
+                }
+            }]);
+        });
+
+        test("array as primary element with metadata", () => {
+            const ast = parseCode('[[1, 2, 3], name := "numbers", count := 3];');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'WithMetadata',
+                    primary: {
+                        type: 'Array',
+                        elements: [
+                            { type: 'Number', value: '1' },
+                            { type: 'Number', value: '2' },
+                            { type: 'Number', value: '3' }
+                        ]
+                    },
+                    metadata: {
+                        name: { type: 'String', value: 'numbers', kind: 'quote' },
+                        count: { type: 'Number', value: '3' }
+                    }
+                }
+            }]);
+        });
+
+        test("regular array without metadata still works", () => {
+            const ast = parseCode('[1, 2, 3];');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'Array',
+                    elements: [
+                        { type: 'Number', value: '1' },
+                        { type: 'Number', value: '2' },
+                        { type: 'Number', value: '3' }
+                    ]
+                }
+            }]);
+        });
+    });
+
     describe("Error handling", () => {
         test("unmatched parenthesis throws error", () => {
             expect(() => parseCode('(2 + 3;')).toThrow(/Expected closing parenthesis/);
@@ -328,6 +470,38 @@ describe("RiX Parser", () => {
 
         test("unmatched brace throws error", () => {
             expect(() => parseCode('{a, b;')).toThrow(/Expected closing brace/);
+        });
+
+        test("invalid metadata key throws error", () => {
+            expect(() => parseCode('[obj, (x + y) := "invalid"];')).toThrow(/Metadata key must be an identifier or string/);
+        });
+
+        test("mixed array elements with metadata throws error", () => {
+            expect(() => parseCode('[1, 2, 3, name := "invalid"];')).toThrow(/Cannot mix array elements with metadata/);
+        });
+
+        test("nested array with multiple elements works correctly", () => {
+            const ast = parseCode('[[1, 2, 3, 4, 5], name := "numbers", size := 5];');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'WithMetadata',
+                    primary: {
+                        type: 'Array',
+                        elements: [
+                            { type: 'Number', value: '1' },
+                            { type: 'Number', value: '2' },
+                            { type: 'Number', value: '3' },
+                            { type: 'Number', value: '4' },
+                            { type: 'Number', value: '5' }
+                        ]
+                    },
+                    metadata: {
+                        name: { type: 'String', value: 'numbers', kind: 'quote' },
+                        size: { type: 'Number', value: '5' }
+                    }
+                }
+            }]);
         });
     });
 

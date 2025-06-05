@@ -154,6 +154,25 @@ const testCases = [
         name: "Multiple Statements",
         code: "x := 5; y := 10; result := x + y;",
         description: "Multiple statements separated by semicolons"
+    },
+    
+    // Metadata annotations
+    {
+        name: "Simple Metadata",
+        code: "[matrix, rows := 3, cols := 4];",
+        description: "Object with metadata annotations using := syntax"
+    },
+    
+    {
+        name: "Complex Metadata",
+        code: "[dataset, name := \"users\", size := count(records), version := 1.2];",
+        description: "Metadata with string keys and expression values"
+    },
+    
+    {
+        name: "Metadata Only",
+        code: "[config := \"production\", debug := false, port := 8080];",
+        description: "Pure metadata configuration without primary element"
     }
 ];
 
@@ -203,6 +222,7 @@ console.log('• Assignment and equation operators');
 console.log('• Pipe operations for data flow');
 console.log('• Arrays, sets, and collections');
 console.log('• Property access chains');
+console.log('• Metadata and property annotations');
 console.log('• Statement parsing with semicolons');
 console.log('• Extensible symbol table');
 console.log('• Position tracking for debugging');
