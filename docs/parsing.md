@@ -218,11 +218,44 @@ Represents array literals:
 ```
 
 #### Set
-Represents set literals:
+Represents set literals containing only literal values or expressions without special operators:
 ```javascript
 {
     type: "Set",
     elements: [ASTNode],    // Set element expressions
+    pos: [start, delim, end],
+    original: string
+}
+```
+
+#### Map
+Represents map literals containing key-value pairs using the `:=` operator:
+```javascript
+{
+    type: "Map",
+    elements: [ASTNode],    // Array of BinaryOperation nodes with operator ":="
+    pos: [start, delim, end],
+    original: string
+}
+```
+
+#### PatternMatch
+Represents pattern-matching containers using the `:=>` operator:
+```javascript
+{
+    type: "PatternMatch",
+    elements: [ASTNode],    // Array of BinaryOperation nodes with operator ":=>"
+    pos: [start, delim, end],
+    original: string
+}
+```
+
+#### System
+Represents systems of equations using equation operators (`:=:`, `:>:`, etc.) separated by semicolons:
+```javascript
+{
+    type: "System", 
+    elements: [ASTNode],    // Array of BinaryOperation nodes with equation operators
     pos: [start, delim, end],
     original: string
 }
@@ -399,6 +432,114 @@ function systemLookup(name) {
 
 For specialized constructs, you can create custom node types by modifying the parser's `createNode` method and adding appropriate parsing logic.
 
+## Brace Container Types
+
+The parser distinguishes between four different types of brace containers `{}` based on their contents:
+
+### Set Containers
+Contains only literal values or expressions without special assignment operators:
+```javascript
+// Input: "{3, 5, 6};"
+{
+    type: "Set",
+    elements: [
+        { type: "Number", value: "3" },
+        { type: "Number", value: "5" },
+        { type: "Number", value: "6" }
+    ]
+}
+```
+
+### Map Containers
+Contains key-value pairs using the `:=` operator:
+```javascript
+// Input: "{a := 4, b := 5};"
+{
+    type: "Map",
+    elements: [
+        {
+            type: "BinaryOperation",
+            operator: ":=",
+            left: { type: "UserIdentifier", name: "a" },
+            right: { type: "Number", value: "4" }
+        },
+        {
+            type: "BinaryOperation", 
+            operator: ":=",
+            left: { type: "UserIdentifier", name: "b" },
+            right: { type: "Number", value: "5" }
+        }
+    ]
+}
+```
+
+### Pattern-Match Containers
+Contains pattern-match pairs using the `:=>` operator:
+```javascript
+// Input: "{(x) :=> x + 1};"
+{
+    type: "PatternMatch",
+    elements: [{
+        type: "BinaryOperation",
+        operator: ":=>",
+        left: {
+            type: "Grouping",
+            expression: { type: "UserIdentifier", name: "x" }
+        },
+        right: {
+            type: "BinaryOperation",
+            operator: "+",
+            left: { type: "UserIdentifier", name: "x" },
+            right: { type: "Number", value: "1" }
+        }
+    }]
+}
+```
+
+### System Containers
+Contains equations using equation operators (`:=:`, `:>:`, etc.) separated by semicolons:
+```javascript
+// Input: "{x :=: 3*x + 2; y :=: x};"
+{
+    type: "System",
+    elements: [
+        {
+            type: "BinaryOperation",
+            operator: ":=:",
+            left: { type: "UserIdentifier", name: "x" },
+            right: {
+                type: "BinaryOperation",
+                operator: "+",
+                left: {
+                    type: "BinaryOperation",
+                    operator: "*",
+                    left: { type: "Number", value: "3" },
+                    right: { type: "UserIdentifier", name: "x" }
+                },
+                right: { type: "Number", value: "2" }
+            }
+        },
+        {
+            type: "BinaryOperation",
+            operator: ":=:",
+            left: { type: "UserIdentifier", name: "y" },
+            right: { type: "UserIdentifier", name: "x" }
+        }
+    ]
+}
+```
+
+### Type Validation Rules
+
+The parser enforces type homogeneity within brace containers:
+
+1. **Set containers**: Can contain any expressions that don't use special operators
+2. **Map containers**: Must contain only `:=` assignments
+3. **Pattern-match containers**: Must contain only `:=>` pattern matches
+4. **System containers**: Must contain only equation operators (`:=:`, `:>:`, `:<:`, `:<=:`, `:>=:`) and use semicolons as separators
+
+Mixing different types within the same container will result in a parse error.
+
 ## Examples
 
 ### Basic Arithmetic
@@ -509,6 +650,8 @@ Common error scenarios:
 - **Unexpected tokens**: Invalid syntax or token sequences
 - **Expression termination**: Incomplete expressions at statement boundaries
 - **Mixed metadata**: Cannot mix multiple array elements with metadata assignments
+- **Mixed container types**: Cannot mix different assignment operators within brace containers
+- **Invalid system syntax**: System containers require semicolon separators
 
 ## Position Tracking
 

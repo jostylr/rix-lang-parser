@@ -211,6 +211,130 @@ describe("RiX Parser", () => {
                 }
             }]);
         });
+
+        test("set with literal values", () => {
+            const ast = parseCode('{3, 5, 6};');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'Set',
+                    elements: [
+                        { type: 'Number', value: '3' },
+                        { type: 'Number', value: '5' },
+                        { type: 'Number', value: '6' }
+                    ]
+                }
+            }]);
+        });
+
+        test("map with key-value pairs", () => {
+            const ast = parseCode('{a := 4, b := 5};');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'Map',
+                    elements: [
+                        {
+                            type: 'BinaryOperation',
+                            operator: ':=',
+                            left: { type: 'UserIdentifier', name: 'a' },
+                            right: { type: 'Number', value: '4' }
+                        },
+                        {
+                            type: 'BinaryOperation',
+                            operator: ':=',
+                            left: { type: 'UserIdentifier', name: 'b' },
+                            right: { type: 'Number', value: '5' }
+                        }
+                    ]
+                }
+            }]);
+        });
+
+        test("pattern match with patterns", () => {
+            const ast = parseCode('{(x) :=> x + 1, (y) :=> y * 2};');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'PatternMatch',
+                    elements: [
+                        {
+                            type: 'BinaryOperation',
+                            operator: ':=>',
+                            left: {
+                                type: 'Grouping',
+                                expression: { type: 'UserIdentifier', name: 'x' }
+                            },
+                            right: {
+                                type: 'BinaryOperation',
+                                operator: '+',
+                                left: { type: 'UserIdentifier', name: 'x' },
+                                right: { type: 'Number', value: '1' }
+                            }
+                        },
+                        {
+                            type: 'BinaryOperation',
+                            operator: ':=>',
+                            left: {
+                                type: 'Grouping',
+                                expression: { type: 'UserIdentifier', name: 'y' }
+                            },
+                            right: {
+                                type: 'BinaryOperation',
+                                operator: '*',
+                                left: { type: 'UserIdentifier', name: 'y' },
+                                right: { type: 'Number', value: '2' }
+                            }
+                        }
+                    ]
+                }
+            }]);
+        });
+
+        test("system with equations", () => {
+            const ast = parseCode('{x :=: 3*x + 2; y :=: x};');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'System',
+                    elements: [
+                        {
+                            type: 'BinaryOperation',
+                            operator: ':=:',
+                            left: { type: 'UserIdentifier', name: 'x' },
+                            right: {
+                                type: 'BinaryOperation',
+                                operator: '+',
+                                left: {
+                                    type: 'BinaryOperation',
+                                    operator: '*',
+                                    left: { type: 'Number', value: '3' },
+                                    right: { type: 'UserIdentifier', name: 'x' }
+                                },
+                                right: { type: 'Number', value: '2' }
+                            }
+                        },
+                        {
+                            type: 'BinaryOperation',
+                            operator: ':=:',
+                            left: { type: 'UserIdentifier', name: 'y' },
+                            right: { type: 'UserIdentifier', name: 'x' }
+                        }
+                    ]
+                }
+            }]);
+        });
+
+        test("empty set", () => {
+            const ast = parseCode('{};');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'Set',
+                    elements: []
+                }
+            }]);
+        });
     });
 
     describe("Pipe operations", () => {
@@ -478,6 +602,22 @@ describe("RiX Parser", () => {
 
         test("mixed array elements with metadata throws error", () => {
             expect(() => parseCode('[1, 2, 3, name := "invalid"];')).toThrow(/Cannot mix array elements with metadata/);
+        });
+
+        test("mixed map and set elements throws error", () => {
+            expect(() => parseCode('{a := 1, b, c := 3};')).toThrow(/Map containers must contain only key-value pairs/);
+        });
+
+        test("mixed pattern match and assignment throws error", () => {
+            expect(() => parseCode('{(x) :=> x + 1, a := 2};')).toThrow(/Cannot mix pattern matches with other assignment types/);
+        });
+
+        test("mixed equation and assignment throws error", () => {
+            expect(() => parseCode('{x :=: 3, a := 2};')).toThrow(/System containers must contain only equations with equation operators separated by semicolons/);
+        });
+
+        test("system without semicolons throws error", () => {
+            expect(() => parseCode('{x :=: 3*x + 2, y :=: x};')).toThrow(/System containers must contain only equations/);
         });
 
         test("nested array with multiple elements works correctly", () => {

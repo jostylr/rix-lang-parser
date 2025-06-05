@@ -236,7 +236,7 @@ class Parser {
                 } else if (token.value === '[') {
                     return this.parseArray();
                 } else if (token.value === '{') {
-                    return this.parseSet();
+                    return this.parseBraceContainer();
                 } else if (token.value === '+' || token.value === '-') {
                     return this.parseUnaryOperator();
                 } else {
@@ -397,16 +397,39 @@ class Parser {
         });
     }
 
-    parseSet() {
+    parseBraceContainer() {
         const startToken = this.current;
         this.advance(); // consume '{'
         
         const elements = [];
+        let containerType = null;
+        let hasAssignments = false;
+        let hasPatternMatches = false;
+        let hasEquations = false;
+        let hasSemicolons = false;
         
         if (this.current.value !== '}') {
             do {
-                elements.push(this.parseExpression(0));
+                const element = this.parseExpression(0);
+                elements.push(element);
+                
+                // Check for type indicators
+                if (element.type === 'BinaryOperation') {
+                    if (element.operator === ':=') {
+                        hasAssignments = true;
+                    } else if (element.operator === ':=>') {
+                        hasPatternMatches = true;
+                    } else if (element.operator === ':=:' || element.operator === ':>:' || 
+                              element.operator === ':<:' || element.operator === ':<=:' || 
+                              element.operator === ':>=:') {
+                        hasEquations = true;
+                    }
+                }
+                
                 if (this.current.value === ',') {
+                    this.advance();
+                } else if (this.current.value === ';') {
+                    hasSemicolons = true;
                     this.advance();
                 } else {
                     break;
@@ -419,7 +442,50 @@ class Parser {
         }
         this.advance(); // consume '}'
         
-        return this.createNode('Set', {
+        // Determine container type based on contents
+        if (hasEquations) {
+            if (!hasSemicolons) {
+                this.error('System containers must contain only equations with equation operators separated by semicolons');
+            }
+            if (hasAssignments || hasPatternMatches) {
+                this.error('Cannot mix equations with other assignment types');
+            }
+            containerType = 'System';
+        } else if (hasPatternMatches) {
+            if (hasAssignments) {
+                this.error('Cannot mix pattern matches with other assignment types');
+            }
+            containerType = 'PatternMatch';
+        } else if (hasAssignments) {
+            containerType = 'Map';
+        } else {
+            // All literals or expressions without special operators
+            containerType = 'Set';
+        }
+        
+        // Validate type homogeneity
+        if (containerType === 'Map') {
+            for (const element of elements) {
+                if (element.type !== 'BinaryOperation' || element.operator !== ':=') {
+                    this.error('Map containers must contain only key-value pairs with :=');
+                }
+            }
+        } else if (containerType === 'PatternMatch') {
+            for (const element of elements) {
+                if (element.type !== 'BinaryOperation' || element.operator !== ':=>') {
+                    this.error('Pattern-match containers must contain only pattern-match pairs with :=>');
+                }
+            }
+        } else if (containerType === 'System') {
+            for (const element of elements) {
+                if (element.type !== 'BinaryOperation' || 
+                    !([':=:', ':>:', ':<:', ':<=:', ':>=:'].includes(element.operator))) {
+                    this.error('System containers must contain only equations with equation operators');
+                }
+            }
+        }
+        
+        return this.createNode(containerType, {
             elements: elements,
             pos: startToken.pos,
             original: startToken.original
