@@ -56,6 +56,10 @@ function tokenize(input) {
             token = tryMatchIdentifier(input, position);
         }
         if (!token) {
+            // Try to match semicolon sequences first (before general symbols)
+            token = tryMatchSemicolonSequence(input, position);
+        }
+        if (!token) {
             // Try to match symbols
             token = tryMatchSymbol(input, position);
         }
@@ -419,6 +423,31 @@ function tryMatchIdentifier(input, position) {
         kind: kind,
         pos: [position, position, position + length]
     };
+}
+
+function tryMatchSemicolonSequence(input, position) {
+    const remaining = input.slice(position);
+    
+    // Match consecutive semicolons (not separated by spaces)
+    const match = remaining.match(/^;+/);
+    if (match) {
+        const sequence = match[0];
+        const count = sequence.length;
+        
+        // Only create SemicolonSequence tokens for multiple consecutive semicolons
+        if (count > 1) {
+            return {
+                type: 'SemicolonSequence',
+                original: sequence,
+                value: sequence,
+                count: count,
+                pos: [position, position, position + sequence.length]
+            };
+        }
+        // For single semicolons, let the regular symbol tokenizer handle it
+    }
+    
+    return null;
 }
 
 function tryMatchSymbol(input, position) {

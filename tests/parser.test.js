@@ -335,6 +335,246 @@ describe("RiX Parser", () => {
                 }
             }]);
         });
+
+        test("2x2 matrix with semicolon separator", () => {
+            const ast = parseCode('[1, 2; 3, 4];');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'Matrix',
+                    rows: [
+                        [
+                            { type: 'Number', value: '1' },
+                            { type: 'Number', value: '2' }
+                        ],
+                        [
+                            { type: 'Number', value: '3' },
+                            { type: 'Number', value: '4' }
+                        ]
+                    ]
+                }
+            }]);
+        });
+
+        test("3x2 matrix with multiple rows", () => {
+            const ast = parseCode('[1, 2; 3, 4; 5, 6];');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'Matrix',
+                    rows: [
+                        [
+                            { type: 'Number', value: '1' },
+                            { type: 'Number', value: '2' }
+                        ],
+                        [
+                            { type: 'Number', value: '3' },
+                            { type: 'Number', value: '4' }
+                        ],
+                        [
+                            { type: 'Number', value: '5' },
+                            { type: 'Number', value: '6' }
+                        ]
+                    ]
+                }
+            }]);
+        });
+
+        test("3D tensor with double semicolon separator", () => {
+            const ast = parseCode('[1, 2; 3, 4 ;; 5, 6; 7, 8];');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'Tensor',
+                    structure: [
+                        {
+                            row: [
+                                { type: 'Number', value: '1' },
+                                { type: 'Number', value: '2' }
+                            ],
+                            separatorLevel: 1
+                        },
+                        {
+                            row: [
+                                { type: 'Number', value: '3' },
+                                { type: 'Number', value: '4' }
+                            ],
+                            separatorLevel: 2
+                        },
+                        {
+                            row: [
+                                { type: 'Number', value: '5' },
+                                { type: 'Number', value: '6' }
+                            ],
+                            separatorLevel: 1
+                        },
+                        {
+                            row: [
+                                { type: 'Number', value: '7' },
+                                { type: 'Number', value: '8' }
+                            ],
+                            separatorLevel: 0
+                        }
+                    ],
+                    maxDimension: 3
+                }
+            }]);
+        });
+
+        test("single row matrix", () => {
+            const ast = parseCode('[1, 2, 3; ];');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'Matrix',
+                    rows: [
+                        [
+                            { type: 'Number', value: '1' },
+                            { type: 'Number', value: '2' },
+                            { type: 'Number', value: '3' }
+                        ],
+                        []
+                    ]
+                }
+            }]);
+        });
+
+        test("matrix with variables", () => {
+            const ast = parseCode('[x, y; z, w];');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'Matrix',
+                    rows: [
+                        [
+                            { type: 'UserIdentifier', name: 'x' },
+                            { type: 'UserIdentifier', name: 'y' }
+                        ],
+                        [
+                            { type: 'UserIdentifier', name: 'z' },
+                            { type: 'UserIdentifier', name: 'w' }
+                        ]
+                    ]
+                }
+            }]);
+        });
+
+        test("matrix starting with empty row", () => {
+            const ast = parseCode('[; 1, 2];');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'Matrix',
+                    rows: [
+                        [],
+                        [
+                            { type: 'Number', value: '1' },
+                            { type: 'Number', value: '2' }
+                        ]
+                    ]
+                }
+            }]);
+        });
+
+        test("column vector matrix", () => {
+            const ast = parseCode('[1; 2; 3; 4];');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'Matrix',
+                    rows: [
+                        [{ type: 'Number', value: '1' }],
+                        [{ type: 'Number', value: '2' }],
+                        [{ type: 'Number', value: '3' }],
+                        [{ type: 'Number', value: '4' }]
+                    ]
+                }
+            }]);
+        });
+
+        test("tensor with only separators", () => {
+            const ast = parseCode('[;;];');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'Tensor',
+                    structure: [
+                        {
+                            row: [],
+                            separatorLevel: 2
+                        },
+                        {
+                            row: [],
+                            separatorLevel: 0
+                        }
+                    ],
+                    maxDimension: 3
+                }
+            }]);
+        });
+
+        test("4D tensor with mixed dimensions", () => {
+            const ast = parseCode('[1 ;; 2 ;;; 3];');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'Tensor',
+                    structure: [
+                        {
+                            row: [{ type: 'Number', value: '1' }],
+                            separatorLevel: 2
+                        },
+                        {
+                            row: [{ type: 'Number', value: '2' }],
+                            separatorLevel: 3
+                        },
+                        {
+                            row: [{ type: 'Number', value: '3' }],
+                            separatorLevel: 0
+                        }
+                    ],
+                    maxDimension: 4
+                }
+            }]);
+        });
+
+        test("matrix with expressions", () => {
+            const ast = parseCode('[a + b, x * y; 1/2, 3^4];');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'Matrix',
+                    rows: [
+                        [
+                            {
+                                type: 'BinaryOperation',
+                                operator: '+',
+                                left: { type: 'UserIdentifier', name: 'a' },
+                                right: { type: 'UserIdentifier', name: 'b' }
+                            },
+                            {
+                                type: 'BinaryOperation',
+                                operator: '*',
+                                left: { type: 'UserIdentifier', name: 'x' },
+                                right: { type: 'UserIdentifier', name: 'y' }
+                            }
+                        ],
+                        [
+                            {
+                                type: 'Number',
+                                value: '1/2'
+                            },
+                            {
+                                type: 'BinaryOperation',
+                                operator: '^',
+                                left: { type: 'Number', value: '3' },
+                                right: { type: 'Number', value: '4' }
+                            }
+                        ]
+                    ]
+                }
+            }]);
+        });
     });
 
     describe("Pipe operations", () => {
@@ -618,6 +858,14 @@ describe("RiX Parser", () => {
 
         test("system without semicolons throws error", () => {
             expect(() => parseCode('{x :=: 3*x + 2, y :=: x};')).toThrow(/System containers must contain only equations/);
+        });
+
+        test("matrix with metadata throws error", () => {
+            expect(() => parseCode('[matrix, type := "sparse"; 1, 2];')).toThrow(/Cannot mix matrix\/tensor syntax with metadata/);
+        });
+
+        test("tensor with metadata throws error", () => {
+            expect(() => parseCode('[1, 2; 3, 4, key := value];')).toThrow(/Cannot mix matrix\/tensor syntax with metadata/);
         });
 
         test("nested array with multiple elements works correctly", () => {

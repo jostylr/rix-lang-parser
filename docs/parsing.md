@@ -217,6 +217,32 @@ Represents array literals:
 }
 ```
 
+#### Matrix
+Represents 2D matrix literals using semicolon separators:
+```javascript
+{
+    type: "Matrix",
+    rows: [[ASTNode]],      // Array of rows, each row is array of elements
+    pos: [start, delim, end],
+    original: string
+}
+```
+
+#### Tensor
+Represents multi-dimensional tensor literals using multiple semicolon separators:
+```javascript
+{
+    type: "Tensor",
+    structure: [{
+        row: [ASTNode],     // Array of elements in this row
+        separatorLevel: number  // Number of semicolons that follow this row
+    }],
+    maxDimension: number,   // Highest dimension level (separatorLevel + 1)
+    pos: [start, delim, end],
+    original: string
+}
+```
+
 #### Set
 Represents set literals containing only literal values or expressions without special operators:
 ```javascript
@@ -390,6 +416,170 @@ The parser supports metadata annotations within array syntax using the `:=` oper
     }
 }
 ```
+
+## Matrix and Tensor Syntax
+
+The parser supports multi-dimensional matrix and tensor literals using semicolon separators with different levels indicating dimensionality.
+
+### Syntax Rules
+
+- **Commas (`,`)** separate elements within a row
+- **Single semicolon (`;`)** separates rows within a 2D matrix
+- **Double semicolon (`;;`)** separates 2D slices within a 3D tensor
+- **Triple semicolon (`;;;`)** separates 3D blocks within a 4D tensor
+- And so on for higher dimensions...
+
+### Matrix Examples
+
+#### 2D Matrix
+```javascript
+// Input: [1, 2; 3, 4];
+{
+    type: "Matrix",
+    rows: [
+        [
+            { type: "Number", value: "1" },
+            { type: "Number", value: "2" }
+        ],
+        [
+            { type: "Number", value: "3" },
+            { type: "Number", value: "4" }
+        ]
+    ]
+}
+```
+
+#### Matrix with Variables
+```javascript
+// Input: [x, y; z, w];
+{
+    type: "Matrix",
+    rows: [
+        [
+            { type: "UserIdentifier", name: "x" },
+            { type: "UserIdentifier", name: "y" }
+        ],
+        [
+            { type: "UserIdentifier", name: "z" },
+            { type: "UserIdentifier", name: "w" }
+        ]
+    ]
+}
+```
+
+#### Column Vector
+```javascript
+// Input: [1; 2; 3];
+{
+    type: "Matrix",
+    rows: [
+        [{ type: "Number", value: "1" }],
+        [{ type: "Number", value: "2" }],
+        [{ type: "Number", value: "3" }]
+    ]
+}
+```
+
+### Tensor Examples
+
+#### 3D Tensor
+```javascript
+// Input: [1, 2; 3, 4 ;; 5, 6; 7, 8];
+{
+    type: "Tensor",
+    structure: [
+        {
+            row: [
+                { type: "Number", value: "1" },
+                { type: "Number", value: "2" }
+            ],
+            separatorLevel: 1
+        },
+        {
+            row: [
+                { type: "Number", value: "3" },
+                { type: "Number", value: "4" }
+            ],
+            separatorLevel: 2
+        },
+        {
+            row: [
+                { type: "Number", value: "5" },
+                { type: "Number", value: "6" }
+            ],
+            separatorLevel: 1
+        },
+        {
+            row: [
+                { type: "Number", value: "7" },
+                { type: "Number", value: "8" }
+            ],
+            separatorLevel: 0
+        }
+    ],
+    maxDimension: 3
+}
+```
+
+#### 4D Tensor
+```javascript
+// Input: [1; 2 ;; 3; 4 ;;; 5; 6 ;; 7; 8];
+{
+    type: "Tensor",
+    structure: [
+        // Structure with separatorLevel values ranging from 0 to 3
+    ],
+    maxDimension: 4
+}
+```
+
+### Special Cases
+
+#### Empty Rows
+Empty rows are preserved in the structure:
+```javascript
+// Input: [1, 2; ; 3, 4];
+{
+    type: "Matrix",
+    rows: [
+        [
+            { type: "Number", value: "1" },
+            { type: "Number", value: "2" }
+        ],
+        [],  // Empty row
+        [
+            { type: "Number", value: "3" },
+            { type: "Number", value: "4" }
+        ]
+    ]
+}
+```
+
+#### Mixed with Expressions
+Matrix elements can be any valid expressions:
+```javascript
+// Input: [a + b, sin(x); f(y), z^2];
+{
+    type: "Matrix",
+    rows: [
+        [
+            { type: "BinaryOperation", operator: "+", ... },
+            { type: "FunctionCall", function: { name: "sin" }, ... }
+        ],
+        [
+            { type: "FunctionCall", function: { name: "f" }, ... },
+            { type: "BinaryOperation", operator: "^", ... }
+        ]
+    ]
+}
+```
+
+### Important Notes
+
+- **Metadata incompatible**: Matrix/tensor syntax cannot be mixed with metadata annotations (`:=` syntax)
+- **Spaces matter**: Spaces between semicolons create separate separator tokens
+- **Post-processing**: Actual dimensional analysis is performed at post-processing level
+- **Precedence**: Semicolon sequences have separator precedence and break expression parsing
 
 ## Extending the Parser
 

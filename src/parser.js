@@ -146,6 +146,9 @@ class Parser {
     getSymbolInfo(token) {
         if (token.type === 'Symbol') {
             return SYMBOL_TABLE[token.value] || { precedence: 0, type: 'unknown' };
+        } else if (token.type === 'SemicolonSequence') {
+            // Semicolon sequences should not be treated as binary operators
+            return { precedence: 0, type: 'separator' };
         } else if (token.type === 'Identifier' && token.kind === 'System') {
             const systemInfo = this.systemLookup(token.value);
             // Convert system lookup result to symbol table format
@@ -168,7 +171,7 @@ class Parser {
             // Check for statement terminators
             if (this.current.value === ';' || this.current.value === ',' || 
                 this.current.value === ')' || this.current.value === ']' || 
-                this.current.value === '}') {
+                this.current.value === '}' || this.current.type === 'SemicolonSequence') {
                 break;
             }
 
@@ -184,7 +187,7 @@ class Parser {
                 break;
             }
 
-            if (symbolInfo.type === 'statement') {
+            if (symbolInfo.type === 'statement' || symbolInfo.type === 'separator') {
                 break;
             }
 
@@ -320,18 +323,49 @@ class Parser {
         const startToken = this.current;
         this.advance(); // consume '['
         
+        // Check if this might be a matrix/tensor by looking for semicolons
+        const result = this.parseMatrixOrArray(startToken);
+        
+        if (this.current.value !== ']') {
+            this.error('Expected closing bracket');
+        }
+        this.advance(); // consume ']'
+        
+        return result;
+    }
+    
+    parseMatrixOrArray(startToken) {
         const elements = [];
         let hasMetadata = false;
         let primaryElement = null;
         const metadataMap = {};
         let nonMetadataCount = 0;
+        let hasSemicolons = false;
+        let matrixStructure = [];
+        let currentRow = [];
         
         if (this.current.value !== ']') {
             do {
+                // Handle leading semicolons (empty rows at start)
+                if (this.current.value === ';' || this.current.type === 'SemicolonSequence') {
+                    hasSemicolons = true;
+                    const semicolonCount = this.consumeSemicolonSequence();
+                    
+                    // Add empty row to matrix structure
+                    matrixStructure.push({
+                        row: [],
+                        separatorLevel: semicolonCount
+                    });
+                    continue;
+                }
+                
                 const element = this.parseExpression(0);
                 
                 // Check if this is a metadata assignment (key := value)
                 if (element.type === 'BinaryOperation' && element.operator === ':=') {
+                    if (hasSemicolons) {
+                        this.error('Cannot mix matrix/tensor syntax with metadata - use nested array syntax');
+                    }
                     hasMetadata = true;
                     // Extract the key from the left side
                     let key;
@@ -346,7 +380,7 @@ class Parser {
                     }
                     metadataMap[key] = element.right;
                 } else {
-                    // Regular array element
+                    // Regular element
                     nonMetadataCount++;
                     if (hasMetadata) {
                         this.error('Cannot mix array elements with metadata - use nested array syntax like [[1,2,3], key := value]');
@@ -355,25 +389,43 @@ class Parser {
                         primaryElement = element;
                     }
                     elements.push(element);
+                    currentRow.push(element);
                 }
                 
+                // Check what comes next
                 if (this.current.value === ',') {
                     this.advance();
+                } else if (this.current.value === ';' || this.current.type === 'SemicolonSequence') {
+                    if (hasMetadata) {
+                        this.error('Cannot mix matrix/tensor syntax with metadata');
+                    }
+                    hasSemicolons = true;
+                    const semicolonCount = this.consumeSemicolonSequence();
+                    
+                    // Add current row to matrix structure (even if empty)
+                    matrixStructure.push({
+                        row: [...currentRow],
+                        separatorLevel: semicolonCount
+                    });
+                    currentRow = [];
                 } else {
                     break;
                 }
             } while (this.current.value !== ']' && this.current.type !== 'End');
         }
         
+        // Add final row (always add if we have semicolons, even if empty)
+        if (currentRow.length > 0 || hasSemicolons) {
+            matrixStructure.push({
+                row: currentRow,
+                separatorLevel: 0
+            });
+        }
+        
         // Check if we have metadata and multiple non-metadata elements
         if (hasMetadata && nonMetadataCount > 1) {
             this.error('Cannot mix array elements with metadata - use nested array syntax like [[1,2,3], key := value]');
         }
-        
-        if (this.current.value !== ']') {
-            this.error('Expected closing bracket');
-        }
-        this.advance(); // consume ']'
         
         // If we found metadata annotations, create a WithMetadata node
         if (hasMetadata) {
@@ -389,12 +441,59 @@ class Parser {
             });
         }
         
+        // If we found semicolons, create Matrix or Tensor node
+        if (hasSemicolons) {
+            return this.buildMatrixTensor(matrixStructure, startToken);
+        }
+        
         // Otherwise, return a regular Array node
         return this.createNode('Array', {
             elements: elements,
             pos: startToken.pos,
             original: startToken.original
         });
+    }
+    
+    buildMatrixTensor(matrixStructure, startToken) {
+        // Determine maximum separator level to decide between Matrix and Tensor
+        const maxSeparatorLevel = Math.max(...matrixStructure.map(item => item.separatorLevel));
+        
+        if (maxSeparatorLevel === 1) {
+            // This is a 2D Matrix - convert structure to simple rows
+            const rows = [];
+            
+            for (const item of matrixStructure) {
+                rows.push(item.row);
+            }
+            
+            return this.createNode('Matrix', {
+                rows: rows,
+                pos: startToken.pos,
+                original: startToken.original
+            });
+        } else {
+            // This is a multi-dimensional Tensor
+            return this.createNode('Tensor', {
+                structure: matrixStructure,
+                maxDimension: maxSeparatorLevel + 1,
+                pos: startToken.pos,
+                original: startToken.original
+            });
+        }
+    }
+    
+    consumeSemicolonSequence() {
+        if (this.current.type === 'SemicolonSequence') {
+            // Multiple consecutive semicolons
+            const count = this.current.count;
+            this.advance();
+            return count;
+        } else if (this.current.value === ';') {
+            // Single semicolon
+            this.advance();
+            return 1;
+        }
+        return 0;
     }
 
     parseBraceContainer() {
