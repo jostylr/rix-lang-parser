@@ -577,6 +577,207 @@ describe("RiX Parser", () => {
         });
     });
 
+    describe("Code blocks", () => {
+        test("empty code block", () => {
+            const ast = parseCode('{{}};');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'CodeBlock',
+                    statements: []
+                }
+            }]);
+        });
+
+        test("code block with single expression", () => {
+            const ast = parseCode('{{x := 1}};');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'CodeBlock',
+                    statements: [{
+                        type: 'BinaryOperation',
+                        operator: ':=',
+                        left: { type: 'UserIdentifier', name: 'x' },
+                        right: { type: 'Number', value: '1' }
+                    }]
+                }
+            }]);
+        });
+
+        test("code block with multiple statements", () => {
+            const ast = parseCode('{{x := 1; y := 2}};');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'CodeBlock',
+                    statements: [{
+                        type: 'BinaryOperation',
+                        operator: ':=',
+                        left: { type: 'UserIdentifier', name: 'x' },
+                        right: { type: 'Number', value: '1' }
+                    }, {
+                        type: 'BinaryOperation',
+                        operator: ':=',
+                        left: { type: 'UserIdentifier', name: 'y' },
+                        right: { type: 'Number', value: '2' }
+                    }]
+                }
+            }]);
+        });
+
+        test("code block with expressions", () => {
+            const ast = parseCode('{{a + b; c * d}};');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'CodeBlock',
+                    statements: [{
+                        type: 'BinaryOperation',
+                        operator: '+',
+                        left: { type: 'UserIdentifier', name: 'a' },
+                        right: { type: 'UserIdentifier', name: 'b' }
+                    }, {
+                        type: 'BinaryOperation',
+                        operator: '*',
+                        left: { type: 'UserIdentifier', name: 'c' },
+                        right: { type: 'UserIdentifier', name: 'd' }
+                    }]
+                }
+            }]);
+        });
+
+        test("distinguishes code block from set containing set", () => {
+            const codeBlock = parseCode('{{3}};');
+            const setOfSet = parseCode('{ {3} };');
+            
+            expect(stripMetadata(codeBlock)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'CodeBlock',
+                    statements: [{ type: 'Number', value: '3' }]
+                }
+            }]);
+            
+            expect(stripMetadata(setOfSet)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'Set',
+                    elements: [{
+                        type: 'Set',
+                        elements: [{ type: 'Number', value: '3' }]
+                    }]
+                }
+            }]);
+        });
+
+        test("spaces matter between braces", () => {
+            // {{ }} is a code block
+            const codeBlock = parseCode('{{ }};');
+            expect(stripMetadata(codeBlock)[0].expression.type).toBe('CodeBlock');
+            
+            // { { } } is a set containing an empty set
+            const setOfSet = parseCode('{ { } };');
+            expect(stripMetadata(setOfSet)[0].expression.type).toBe('Set');
+            expect(stripMetadata(setOfSet)[0].expression.elements[0].type).toBe('Set');
+        });
+
+        test("nested code blocks", () => {
+            const ast = parseCode('{{ a := {{ 3 }} }};');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'CodeBlock',
+                    statements: [{
+                        type: 'BinaryOperation',
+                        operator: ':=',
+                        left: { type: 'UserIdentifier', name: 'a' },
+                        right: {
+                            type: 'CodeBlock',
+                            statements: [{ type: 'Number', value: '3' }]
+                        }
+                    }]
+                }
+            }]);
+        });
+
+        test("deeply nested code blocks", () => {
+            const ast = parseCode('{{ x := {{ y := {{ z := 42 }} }} }};');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'CodeBlock',
+                    statements: [{
+                        type: 'BinaryOperation',
+                        operator: ':=',
+                        left: { type: 'UserIdentifier', name: 'x' },
+                        right: {
+                            type: 'CodeBlock',
+                            statements: [{
+                                type: 'BinaryOperation',
+                                operator: ':=',
+                                left: { type: 'UserIdentifier', name: 'y' },
+                                right: {
+                                    type: 'CodeBlock',
+                                    statements: [{
+                                        type: 'BinaryOperation',
+                                        operator: ':=',
+                                        left: { type: 'UserIdentifier', name: 'z' },
+                                        right: { type: 'Number', value: '42' }
+                                    }]
+                                }
+                            }]
+                        }
+                    }]
+                }
+            }]);
+        });
+
+        test("complex nested code blocks with multiple statements", () => {
+            const ast = parseCode('{{ outer := 1; inner := {{ nested := 2; nested + 1 }}; result := outer + inner }};');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'CodeBlock',
+                    statements: [{
+                        type: 'BinaryOperation',
+                        operator: ':=',
+                        left: { type: 'UserIdentifier', name: 'outer' },
+                        right: { type: 'Number', value: '1' }
+                    }, {
+                        type: 'BinaryOperation',
+                        operator: ':=',
+                        left: { type: 'UserIdentifier', name: 'inner' },
+                        right: {
+                            type: 'CodeBlock',
+                            statements: [{
+                                type: 'BinaryOperation',
+                                operator: ':=',
+                                left: { type: 'UserIdentifier', name: 'nested' },
+                                right: { type: 'Number', value: '2' }
+                            }, {
+                                type: 'BinaryOperation',
+                                operator: '+',
+                                left: { type: 'UserIdentifier', name: 'nested' },
+                                right: { type: 'Number', value: '1' }
+                            }]
+                        }
+                    }, {
+                        type: 'BinaryOperation',
+                        operator: ':=',
+                        left: { type: 'UserIdentifier', name: 'result' },
+                        right: {
+                            type: 'BinaryOperation',
+                            operator: '+',
+                            left: { type: 'UserIdentifier', name: 'outer' },
+                            right: { type: 'UserIdentifier', name: 'inner' }
+                        }
+                    }]
+                }
+            }]);
+        });
+    });
+
     describe("Pipe operations", () => {
         test("simple pipe", () => {
             const ast = parseCode('x |> f;');

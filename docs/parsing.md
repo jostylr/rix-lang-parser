@@ -624,7 +624,71 @@ For specialized constructs, you can create custom node types by modifying the pa
 
 ## Brace Container Types
 
-The parser distinguishes between four different types of brace containers `{}` based on their contents:
+The parser distinguishes between different types of brace containers based on their syntax and contents:
+
+### Code Blocks `{{ }}`
+
+Code blocks use double braces and contain executable statements or expressions:
+```javascript
+// Input: "{{x := 1; y := 2}};"
+{
+    type: "CodeBlock",
+    statements: [
+        {
+            type: "BinaryOperation",
+            operator: ":=",
+            left: { type: "UserIdentifier", name: "x" },
+            right: { type: "Number", value: "1" }
+        },
+        {
+            type: "BinaryOperation", 
+            operator: ":=",
+            left: { type: "UserIdentifier", name: "y" },
+            right: { type: "Number", value: "2" }
+        }
+    ]
+}
+```
+
+**Important**: Spaces between braces matter! `{{}}` is a code block, while `{ {} }` is a set containing an empty set.
+
+#### Code Block Rules:
+- Use `{{` and `}}` delimiters (double braces)
+- Can contain any valid RiX expressions or statements
+- Statements can be separated by semicolons
+- Always produces a `CodeBlock` AST node regardless of statement count
+- Supports assignments, function calls, expressions, and nested structures
+
+#### Code Block Examples:
+```javascript
+// Empty code block
+{{}}
+
+// Single expression
+{{x + y}}
+
+// Single assignment  
+{{result := calculation()}}
+
+// Multiple statements
+{{a := 1; b := 2; sum := a + b}}
+
+// Complex computation pipeline
+{{input := 45; radians := input * PI / 180; result := SIN(radians)}}
+
+// Nested code blocks
+{{ a := {{ 3 }} }}
+
+// Multi-level nesting
+{{ x := {{ y := {{ z := 42 }} }} }}
+
+// Complex nested with multiple statements
+{{ outer := 1; inner := {{ nested := 2; nested + 1 }}; result := outer + inner }}
+```
+
+### Brace Containers `{ }`
+
+The parser distinguishes between four different types of single brace containers `{}` based on their contents:
 
 ### Set Containers
 Contains only literal values or expressions without special assignment operators:
@@ -729,6 +793,33 @@ The parser enforces type homogeneity within brace containers:
 4. **System containers**: Must contain only equation operators (`:=:`, `:>:`, `:<:`, `:<=:`, `:>=:`) and use semicolons as separators
 
 Mixing different types within the same container will result in a parse error.
+
+## Code Block vs Brace Container Distinction
+
+It's crucial to understand the difference between code blocks `{{ }}` and brace containers `{ }`:
+
+| Construct | Syntax | Purpose | Example |
+|-----------|--------|---------|---------|
+| Code Block | `{{ }}` | Assignable code execution | `{{x := 1; y := x + 1}}` |
+| Set | `{ }` | Mathematical set | `{1, 2, 3}` |
+| Map | `{ }` | Key-value pairs | `{name := "Alice", age := 30}` |
+| Pattern Match | `{ }` | Pattern matching | `{(0) :=> "zero", (1) :=> "one"}` |
+| System | `{ }` | Equation systems | `{x :=: 2*y; y :>: 0}` |
+
+### Spacing Examples:
+```javascript
+{{3}}        // Code block containing number 3
+{ {3} }      // Set containing a set that contains 3
+{{}}         // Empty code block  
+{ {} }       // Set containing an empty set
+{{ {a := 1} }} // Code block containing a map
+{ {{a := 1}} } // Set containing a code block (nested)
+
+// Nested code block examples
+{{ a := {{ 3 }} }}                    // Code block with nested code block
+{{ x := {{ y := 2; y * 3 }} }}         // Assignment to nested computation
+{{ compute := {{ base := 10; base^2 }}; result := compute + 5 }} // Multi-level
+```
 
 ## Examples
 

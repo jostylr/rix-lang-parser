@@ -95,6 +95,8 @@ const SYMBOL_TABLE = {
     ']': { precedence: 0, type: 'grouping' },
     '{': { precedence: 0, type: 'grouping' },
     '}': { precedence: 0, type: 'grouping' },
+    '{{': { precedence: 0, type: 'codeblock' },
+    '}}': { precedence: 0, type: 'codeblock' },
     
     // Separators
     ',': { precedence: 5, associativity: 'left', type: 'infix' },
@@ -171,7 +173,8 @@ class Parser {
             // Check for statement terminators
             if (this.current.value === ';' || this.current.value === ',' || 
                 this.current.value === ')' || this.current.value === ']' || 
-                this.current.value === '}' || this.current.type === 'SemicolonSequence') {
+                this.current.value === '}' || this.current.value === '}}' || 
+                this.current.type === 'SemicolonSequence') {
                 break;
             }
 
@@ -240,6 +243,8 @@ class Parser {
                     return this.parseArray();
                 } else if (token.value === '{') {
                     return this.parseBraceContainer();
+                } else if (token.value === '{{') {
+                    return this.parseCodeBlock();
                 } else if (token.value === '+' || token.value === '-') {
                     return this.parseUnaryOperator();
                 } else {
@@ -586,6 +591,48 @@ class Parser {
         
         return this.createNode(containerType, {
             elements: elements,
+            pos: startToken.pos,
+            original: startToken.original
+        });
+    }
+
+    parseCodeBlock() {
+        const startToken = this.current;
+        this.advance(); // consume '{{'
+        
+        const statements = [];
+        
+        if (this.current.value !== '}}') {
+            do {
+                const statement = this.parseExpression(0);
+                statements.push(statement);
+                
+                // Check what token we're at after parsing the expression
+                if (this.current.value === ';') {
+                    this.advance(); // consume semicolon and continue
+                    if (this.current.value === '}}') {
+                        break; // End after semicolon if we hit closing braces
+                    }
+                } else if (this.current.value === '}}') {
+                    break; // End if we hit closing braces
+                } else if (this.current.type === 'End') {
+                    this.error('Expected closing }}');
+                } else {
+                    // If we have more tokens but no semicolon, we might have multiple statements
+                    // For now, just break to handle single expressions
+                    break;
+                }
+            } while (this.current.value !== '}}' && this.current.type !== 'End');
+        }
+        
+        if (this.current.value !== '}}') {
+            this.error('Expected closing }}');
+        }
+        this.advance(); // consume '}}'
+        
+        // Always return a CodeBlock regardless of statement count
+        return this.createNode('CodeBlock', {
+            statements: statements,
             pos: startToken.pos,
             original: startToken.original
         });
