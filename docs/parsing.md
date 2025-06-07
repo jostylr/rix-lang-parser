@@ -951,6 +951,280 @@ This enables precise error reporting and source mapping for debugging and toolin
 - **Extensible**: Adding operators doesn't affect parsing performance of existing code
 - **Position preservation**: Full source position tracking with minimal overhead
 
+## Function Definitions
+
+The RiX parser supports comprehensive function definition syntax with multiple paradigms.
+
+### Standard Function Definitions
+
+Standard functions use the `:->` operator and support positional and keyword-only parameters:
+
+```javascript
+// Basic function
+f(x) :-> x + 1
+
+// Function with default parameters
+f(x, n := 5) :-> x^n
+
+// Function with keyword-only parameters (after semicolon)
+f(x, n := 5; a := 0) :-> (x-a)^n + 1
+
+// Function with conditional parameters
+h(x, y; n := 2 ? x^2 + y^2 = 1) :-> COS(x; n) * SIN(y; n)
+```
+
+#### Parameter Types
+
+1. **Positional Parameters**: `x` - required parameters with no default
+2. **Positional with Defaults**: `n := 5` - optional parameters with default values
+3. **Keyword-Only Parameters**: Parameters after `;` that must have defaults and be called by name
+4. **Conditional Parameters**: `n := 2 ? condition` - parameters with conditions that must be satisfied
+
+#### AST Structure
+
+```javascript
+{
+  type: 'FunctionDefinition',
+  name: { type: 'UserIdentifier', name: 'f' },
+  parameters: {
+    positional: [
+      { name: 'x', defaultValue: null, condition: null, isKeywordOnly: false },
+      { name: 'n', defaultValue: {...}, condition: null, isKeywordOnly: false }
+    ],
+    keyword: [
+      { name: 'a', defaultValue: {...}, condition: {...}, isKeywordOnly: true }
+    ],
+    metadata: {}
+  },
+  body: {...},
+  type: 'standard'
+}
+```
+
+### Pattern Matching Functions
+
+Pattern matching functions use `:=>` and allow multiple function definitions under one name:
+
+```javascript
+// Array syntax
+g :=> [ (x ? x < 0) -> -x, (x) -> x ]
+
+// Array with global metadata
+g :=> [ [(x ? x < 0) -> -x+n, (x) -> x-n] , n := 4]
+
+// Separate statements (equivalent to array syntax)
+g :=> (x ? x < 0) -> -x;
+g :=> (x) -> x
+```
+
+#### Pattern Matching Rules
+
+1. Patterns are evaluated in order of definition
+2. First matching pattern with successful execution is used
+3. Conditions use `?` operator: `(x ? x < 0)`
+4. Global metadata applies to all patterns in array form
+5. Local metadata applies only to specific patterns
+
+#### AST Structure
+
+```javascript
+{
+  type: 'PatternMatchingFunction',
+  name: { type: 'UserIdentifier', name: 'g' },
+  parameters: {...},
+  patterns: [
+    {
+      type: 'BinaryOperation',
+      operator: '->',
+      left: { /* parameter with condition */ },
+      right: { /* function body */ }
+    }
+  ],
+  metadata: { /* global metadata */ }
+}
+```
+
+### Function Calls with Enhanced Syntax
+
+Function calls support semicolon separators for keyword arguments:
+
+```javascript
+// Mixed positional and keyword arguments
+f(2, 3; a := 4)
+
+// Shorthand keyword arguments (n := n)
+f(2; n)
+
+// Multiple keyword arguments
+f(1; a := 2, b := 3)
+```
+
+#### Function Call AST
+
+```javascript
+{
+  type: 'FunctionCall',
+  function: { type: 'UserIdentifier', name: 'f' },
+  arguments: {
+    positional: [
+      { type: 'Number', value: '2' },
+      { type: 'Number', value: '3' }
+    ],
+    keyword: {
+      a: { type: 'Number', value: '4' }
+    }
+  }
+}
+```
+
+### Assignment-Style Function Definitions
+
+Alternative syntax using standard assignment operators:
+
+```javascript
+// Equivalent to f(x, n := 5; a := 0) :-> (x-a)^n + 1
+f := (x, n := 5; a := 0) -> (x-a)^n + 1
+
+// Pattern matching with assignment
+g := [ (x ? x < 0) -> -x, (x) -> x ]
+```
+
+### Condition Operator
+
+The `?` operator is used for conditional expressions in parameters and patterns:
+
+- **Precedence**: Same as comparison operators (`<`, `>`, etc.)
+- **Associativity**: Left associative
+- **Usage**: `parameter ? condition` or `(args ? condition) -> body`
+
+### Metadata Integration
+
+Function definitions integrate with the existing metadata system:
+
+```javascript
+// Function with parameter metadata
+f(x; a := 0, metadata := "description") :-> x + a
+
+// Pattern matching with global metadata
+g :=> [ patterns, n := 4, description := "absolute value function" ]
+```
+
+### Comprehensive Examples
+
+#### Basic Function Definitions
+
+```javascript
+// Simple function
+square(x) :-> x^2
+
+// Multi-parameter function
+add(x, y) :-> x + y
+
+// Function with system calls
+hypotenuse(a, b) :-> SQRT(a^2 + b^2)
+```
+
+#### Default Parameters
+
+```javascript
+// Single default parameter
+power(x, n := 2) :-> x^n
+
+// Multiple default parameters
+line(x, m := 1, b := 0) :-> m*x + b
+
+// Mixed parameters
+poly(x, a, b := 1, c := 0) :-> a*x^2 + b*x + c
+```
+
+#### Keyword-Only Parameters
+
+```javascript
+// Basic keyword-only parameters
+trig(x; precision := 10, units := "radians") :-> SIN(x; precision)
+
+// Complex parameter mix
+func(x, y, scale := 1; offset := 0, normalize := false) :-> (x + y) * scale + offset
+```
+
+#### Conditional Parameters
+
+```javascript
+// Simple condition
+safeDivide(x, y; check := true ? y != 0) :-> x / y
+
+// Complex condition
+constrainedPower(x, n := 2 ? x > 0 AND n >= 0) :-> x^n
+
+// Multiple conditions
+constrainedFunc(x, y; a := 1 ? x^2 + y^2 <= 1, b := 0 ? a > 0) :-> a*x + b*y
+```
+
+#### Pattern Matching Functions
+
+```javascript
+// Basic pattern matching
+abs :=> [ (x ? x >= 0) -> x, (x ? x < 0) -> -x ]
+
+// Multiple patterns
+sign :=> [ (x ? x > 0) -> 1, (x ? x < 0) -> -1, (x ? x = 0) -> 0 ]
+
+// Pattern with global metadata
+normalize :=> [ [(x ? x != 0) -> x / scale, (x) -> 0], scale := 100 ]
+
+// Pattern with multiple metadata
+transform :=> [ [(x) -> a*x + b, (x ? x < 0) -> a*(-x) + b], a := 2, b := 5 ]
+```
+
+#### Function Calls with Enhanced Syntax
+
+```javascript
+// Basic function call
+result := func(5, 10)
+
+// Function call with keywords
+result := transform(x; scale := 2, offset := 5)
+
+// Mixed argument call
+result := poly(x, 3; b := 2, c := 1)
+
+// Shorthand keywords (n := n)
+result := process(data; verbose, debug)
+```
+
+#### Assignment-Style Definitions
+
+```javascript
+// Lambda assignment
+double := (x) -> 2 * x
+
+// Lambda with keywords
+adjust := (x; offset := 0, scale := 1) -> x * scale + offset
+
+// Complex lambda
+polynomial := (x, coeffs; degree := 2) -> coeffs[0] + coeffs[1]*x + coeffs[2]*x^degree
+```
+
+#### Real-World Mathematical Examples
+
+```javascript
+// Distance function
+distance(p1, p2; metric := "euclidean") :-> SQRT((p1[0] - p2[0])^2 + (p1[1] - p2[1])^2)
+
+// Newton method step
+newtonStep(f, df, x; tolerance := 1e-6 ? df(x) != 0) :-> x - f(x) / df(x)
+
+// Piecewise function
+piecewise :=> [ 
+  (x ? x < -1) -> -x - 1, 
+  (x ? x >= -1 AND x <= 1) -> x^2, 
+  (x ? x > 1) -> x + 1 
+]
+
+// Matrix operation with validation
+matmul(A, B; validate := true ? A.cols = B.rows) :-> A * B
+```
+
 ## Integration Notes
 
 The parser is designed to integrate seamlessly with:

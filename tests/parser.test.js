@@ -42,6 +42,368 @@ function stripMetadata(obj) {
 }
 
 describe("RiX Parser", () => {
+    describe("Function definitions", () => {
+        test("standard function definition with :->", () => {
+            const ast = parseCode('f(x) :-> x + 1;');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'FunctionDefinition',
+                    name: { type: 'UserIdentifier', name: 'f' },
+                    parameters: {
+                        positional: [{ name: 'x', defaultValue: null, condition: null, isKeywordOnly: false }],
+                        keyword: [],
+                        metadata: {}
+                    },
+                    body: {
+                        type: 'BinaryOperation',
+                        operator: '+',
+                        left: { type: 'UserIdentifier', name: 'x' },
+                        right: { type: 'Number', value: '1' }
+                    },
+                    type: 'standard'
+                }
+            }]);
+        });
+
+        test("function definition with default parameters", () => {
+            const ast = parseCode('f(x, n := 5) :-> x^n;');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'FunctionDefinition',
+                    name: { type: 'UserIdentifier', name: 'f' },
+                    parameters: {
+                        positional: [
+                            { name: 'x', defaultValue: null, condition: null, isKeywordOnly: false },
+                            { name: 'n', defaultValue: { type: 'Number', value: '5' }, condition: null, isKeywordOnly: false }
+                        ],
+                        keyword: [],
+                        metadata: {}
+                    },
+                    body: {
+                        type: 'BinaryOperation',
+                        operator: '^',
+                        left: { type: 'UserIdentifier', name: 'x' },
+                        right: { type: 'UserIdentifier', name: 'n' }
+                    },
+                    type: 'standard'
+                }
+            }]);
+        });
+
+        test("function definition with keyword-only parameters", () => {
+            const ast = parseCode('f(x, n := 5; a := 0) :-> (x-a)^n + 1;');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'FunctionDefinition',
+                    name: { type: 'UserIdentifier', name: 'f' },
+                    parameters: {
+                        positional: [
+                            { name: 'x', defaultValue: null, condition: null, isKeywordOnly: false },
+                            { name: 'n', defaultValue: { type: 'Number', value: '5' }, condition: null, isKeywordOnly: false }
+                        ],
+                        keyword: [
+                            { name: 'a', defaultValue: { type: 'Number', value: '0' }, condition: null, isKeywordOnly: true }
+                        ],
+                        metadata: {}
+                    },
+                    body: {
+                        type: 'BinaryOperation',
+                        operator: '+',
+                        left: {
+                            type: 'BinaryOperation',
+                            operator: '^',
+                            left: {
+                                type: 'Grouping',
+                                expression: {
+                                    type: 'BinaryOperation',
+                                    operator: '-',
+                                    left: { type: 'UserIdentifier', name: 'x' },
+                                    right: { type: 'UserIdentifier', name: 'a' }
+                                }
+                            },
+                            right: { type: 'UserIdentifier', name: 'n' }
+                        },
+                        right: { type: 'Number', value: '1' }
+                    },
+                    type: 'standard'
+                }
+            }]);
+        });
+
+        test("function definition with condition", () => {
+            const ast = parseCode('h(x, y; n := 2 ? x^2 + y^2 = 1) :-> COS(x; n) * SIN(y; n);');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'FunctionDefinition',
+                    name: { type: 'UserIdentifier', name: 'h' },
+                    parameters: {
+                        positional: [
+                            { name: 'x', defaultValue: null, condition: null, isKeywordOnly: false },
+                            { name: 'y', defaultValue: null, condition: null, isKeywordOnly: false }
+                        ],
+                        keyword: [
+                            { 
+                                name: 'n', 
+                                defaultValue: { type: 'Number', value: '2' }, 
+                                condition: {
+                                    type: 'BinaryOperation',
+                                    operator: '=',
+                                    left: {
+                                        type: 'BinaryOperation',
+                                        operator: '+',
+                                        left: {
+                                            type: 'BinaryOperation',
+                                            operator: '^',
+                                            left: { type: 'UserIdentifier', name: 'x' },
+                                            right: { type: 'Number', value: '2' }
+                                        },
+                                        right: {
+                                            type: 'BinaryOperation',
+                                            operator: '^',
+                                            left: { type: 'UserIdentifier', name: 'y' },
+                                            right: { type: 'Number', value: '2' }
+                                        }
+                                    },
+                                    right: { type: 'Number', value: '1' }
+                                },
+                                isKeywordOnly: true 
+                            }
+                        ],
+                        metadata: {}
+                    },
+                    body: {
+                        type: 'BinaryOperation',
+                        operator: '*',
+                        left: {
+                            type: 'FunctionCall',
+                            function: { 
+                                type: 'SystemIdentifier', 
+                                name: 'COS',
+                                systemInfo: { type: 'function', arity: 1 }
+                            },
+                            arguments: {
+                                positional: [{ type: 'UserIdentifier', name: 'x' }],
+                                keyword: { n: { type: 'UserIdentifier', name: 'n' } }
+                            }
+                        },
+                        right: {
+                            type: 'FunctionCall',
+                            function: { 
+                                type: 'SystemIdentifier', 
+                                name: 'SIN',
+                                systemInfo: { type: 'function', arity: 1 }
+                            },
+                            arguments: {
+                                positional: [{ type: 'UserIdentifier', name: 'y' }],
+                                keyword: { n: { type: 'UserIdentifier', name: 'n' } }
+                            }
+                        }
+                    },
+                    type: 'standard'
+                }
+            }]);
+        });
+
+        test("pattern matching function with array syntax", () => {
+            const ast = parseCode('g :=> [ (x ? x < 0) -> -x, (x) -> x ];');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'PatternMatchingFunction',
+                    name: { type: 'UserIdentifier', name: 'g' },
+                    parameters: {
+                        positional: [],
+                        keyword: [],
+                        metadata: {}
+                    },
+                    patterns: [
+                        {
+                            type: 'BinaryOperation',
+                            operator: '->',
+                            left: {
+                                type: 'Grouping',
+                                expression: {
+                                    type: 'BinaryOperation',
+                                    operator: '?',
+                                    left: { type: 'UserIdentifier', name: 'x' },
+                                    right: {
+                                        type: 'BinaryOperation',
+                                        operator: '<',
+                                        left: { type: 'UserIdentifier', name: 'x' },
+                                        right: { type: 'Number', value: '0' }
+                                    }
+                                }
+                            },
+                            right: {
+                                type: 'UnaryOperation',
+                                operator: '-',
+                                operand: { type: 'UserIdentifier', name: 'x' }
+                            }
+                        },
+                        {
+                            type: 'BinaryOperation',
+                            operator: '->',
+                            left: {
+                                type: 'Grouping',
+                                expression: { type: 'UserIdentifier', name: 'x' }
+                            },
+                            right: { type: 'UserIdentifier', name: 'x' }
+                        }
+                    ],
+                    metadata: {}
+                }
+            }]);
+        });
+
+        test("pattern matching function with metadata", () => {
+            const ast = parseCode('g :=> [ [(x ? x < 0) -> -x+n, (x) -> x-n] , n := 4];');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'PatternMatchingFunction',
+                    name: { type: 'UserIdentifier', name: 'g' },
+                    parameters: {
+                        positional: [],
+                        keyword: [],
+                        metadata: {}
+                    },
+                    patterns: [
+                        {
+                            type: 'BinaryOperation',
+                            operator: '->',
+                            left: {
+                                type: 'Grouping',
+                                expression: {
+                                    type: 'BinaryOperation',
+                                    operator: '?',
+                                    left: { type: 'UserIdentifier', name: 'x' },
+                                    right: {
+                                        type: 'BinaryOperation',
+                                        operator: '<',
+                                        left: { type: 'UserIdentifier', name: 'x' },
+                                        right: { type: 'Number', value: '0' }
+                                    }
+                                }
+                            },
+                            right: {
+                                type: 'BinaryOperation',
+                                operator: '+',
+                                left: {
+                                    type: 'UnaryOperation',
+                                    operator: '-',
+                                    operand: { type: 'UserIdentifier', name: 'x' }
+                                },
+                                right: { type: 'UserIdentifier', name: 'n' }
+                            }
+                        },
+                        {
+                            type: 'BinaryOperation',
+                            operator: '->',
+                            left: {
+                                type: 'Grouping',
+                                expression: { type: 'UserIdentifier', name: 'x' }
+                            },
+                            right: {
+                                type: 'BinaryOperation',
+                                operator: '-',
+                                left: { type: 'UserIdentifier', name: 'x' },
+                                right: { type: 'UserIdentifier', name: 'n' }
+                            }
+                        }
+                    ],
+                    metadata: {
+                        n: { type: 'Number', value: '4' }
+                    }
+                }
+            }]);
+        });
+
+        test("function call with semicolon separator", () => {
+            const ast = parseCode('f(2, 3; a := 4);');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'FunctionCall',
+                    function: { type: 'UserIdentifier', name: 'f' },
+                    arguments: {
+                        positional: [
+                            { type: 'Number', value: '2' },
+                            { type: 'Number', value: '3' }
+                        ],
+                        keyword: {
+                            a: { type: 'Number', value: '4' }
+                        }
+                    }
+                }
+            }]);
+        });
+
+        test("function call with shorthand keyword argument", () => {
+            const ast = parseCode('f(2; n);');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'FunctionCall',
+                    function: { type: 'UserIdentifier', name: 'f' },
+                    arguments: {
+                        positional: [{ type: 'Number', value: '2' }],
+                        keyword: {
+                            n: { type: 'UserIdentifier', name: 'n' }
+                        }
+                    }
+                }
+            }]);
+        });
+
+        test("simple assignment-style function definition", () => {
+            const ast = parseCode('f := (x, n := 5; a := 0) -> (x-a)^n + 1;');
+            expect(stripMetadata(ast)).toEqual([{
+                type: 'Statement',
+                expression: {
+                    type: 'BinaryOperation',
+                    operator: ':=',
+                    left: { type: 'UserIdentifier', name: 'f' },
+                    right: {
+                        type: 'FunctionLambda',
+                        parameters: {
+                            positional: [
+                                { name: 'x', defaultValue: null, condition: null, isKeywordOnly: false },
+                                { name: 'n', defaultValue: { type: 'Number', value: '5' }, condition: null, isKeywordOnly: false }
+                            ],
+                            keyword: [
+                                { name: 'a', defaultValue: { type: 'Number', value: '0' }, condition: null, isKeywordOnly: true }
+                            ],
+                            metadata: {}
+                        },
+                        body: {
+                            type: 'BinaryOperation',
+                            operator: '+',
+                            left: {
+                                type: 'BinaryOperation',
+                                operator: '^',
+                                left: {
+                                    type: 'Grouping',
+                                    expression: {
+                                        type: 'BinaryOperation',
+                                        operator: '-',
+                                        left: { type: 'UserIdentifier', name: 'x' },
+                                        right: { type: 'UserIdentifier', name: 'a' }
+                                    }
+                                },
+                                right: { type: 'UserIdentifier', name: 'n' }
+                            },
+                            right: { type: 'Number', value: '1' }
+                        }
+                    }
+                }
+            }]);
+        });
+    });
+
     describe("Basic arithmetic", () => {
         test("simple addition", () => {
             const ast = parseCode('2 + 3;');
@@ -129,7 +491,10 @@ describe("RiX Parser", () => {
                 expression: {
                     type: 'FunctionCall',
                     function: { type: 'UserIdentifier', name: 'f' },
-                    arguments: [{ type: 'UserIdentifier', name: 'x' }]
+                    arguments: {
+                        positional: [{ type: 'UserIdentifier', name: 'x' }],
+                        keyword: {}
+                    }
                 }
             }]);
         });
@@ -140,16 +505,21 @@ describe("RiX Parser", () => {
                 type: 'Statement',
                 expression: {
                     type: 'FunctionCall',
-                    function: {
-                        type: 'SystemIdentifier',
+                    function: { 
+                        type: 'SystemIdentifier', 
                         name: 'SIN',
                         systemInfo: { type: 'function', arity: 1 }
                     },
-                    arguments: [{
-                        type: 'SystemIdentifier',
-                        name: 'PI',
-                        systemInfo: { type: 'constant', value: Math.PI }
-                    }]
+                    arguments: {
+                        positional: [
+                            { 
+                                type: 'SystemIdentifier', 
+                                name: 'PI',
+                                systemInfo: { type: 'constant', value: Math.PI }
+                            }
+                        ],
+                        keyword: {}
+                    }
                 }
             }]);
         });
@@ -256,35 +626,49 @@ describe("RiX Parser", () => {
             expect(stripMetadata(ast)).toEqual([{
                 type: 'Statement',
                 expression: {
-                    type: 'PatternMatch',
+                    type: 'Set',
                     elements: [
                         {
-                            type: 'BinaryOperation',
-                            operator: ':=>',
-                            left: {
+                            type: 'PatternMatchingFunction',
+                            name: {
                                 type: 'Grouping',
                                 expression: { type: 'UserIdentifier', name: 'x' }
                             },
-                            right: {
-                                type: 'BinaryOperation',
-                                operator: '+',
-                                left: { type: 'UserIdentifier', name: 'x' },
-                                right: { type: 'Number', value: '1' }
-                            }
+                            parameters: {
+                                positional: [],
+                                keyword: [],
+                                metadata: {}
+                            },
+                            patterns: [
+                                {
+                                    type: 'BinaryOperation',
+                                    operator: '+',
+                                    left: { type: 'UserIdentifier', name: 'x' },
+                                    right: { type: 'Number', value: '1' }
+                                }
+                            ],
+                            metadata: {}
                         },
                         {
-                            type: 'BinaryOperation',
-                            operator: ':=>',
-                            left: {
+                            type: 'PatternMatchingFunction',
+                            name: {
                                 type: 'Grouping',
                                 expression: { type: 'UserIdentifier', name: 'y' }
                             },
-                            right: {
-                                type: 'BinaryOperation',
-                                operator: '*',
-                                left: { type: 'UserIdentifier', name: 'y' },
-                                right: { type: 'Number', value: '2' }
-                            }
+                            parameters: {
+                                positional: [],
+                                keyword: [],
+                                metadata: {}
+                            },
+                            patterns: [
+                                {
+                                    type: 'BinaryOperation',
+                                    operator: '*',
+                                    left: { type: 'UserIdentifier', name: 'y' },
+                                    right: { type: 'Number', value: '2' }
+                                }
+                            ],
+                            metadata: {}
                         }
                     ]
                 }
@@ -1026,7 +1410,7 @@ describe("RiX Parser", () => {
 
     describe("Error handling", () => {
         test("unmatched parenthesis throws error", () => {
-            expect(() => parseCode('(2 + 3;')).toThrow(/Expected closing parenthesis/);
+            expect(() => parseCode('(2 + 3;')).toThrow(/Expected parameter name|Expected closing parenthesis/);
         });
 
         test("unmatched bracket throws error", () => {
@@ -1050,7 +1434,7 @@ describe("RiX Parser", () => {
         });
 
         test("mixed pattern match and assignment throws error", () => {
-            expect(() => parseCode('{(x) :=> x + 1, a := 2};')).toThrow(/Cannot mix pattern matches with other assignment types/);
+            expect(() => parseCode('{(x) :=> x + 1, a := 2};')).toThrow(/Map containers must contain only key-value pairs with|Cannot mix pattern matches with other assignment types/);
         });
 
         test("mixed equation and assignment throws error", () => {

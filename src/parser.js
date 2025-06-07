@@ -10,6 +10,7 @@ const PRECEDENCE = {
     PIPE: 20,           // |>, ||>, |>>, etc.
     LOGICAL_OR: 30,     // OR (if system identifier)
     LOGICAL_AND: 40,    // AND (if system identifier)  
+    CONDITION: 45,      // ? operator for conditions
     EQUALITY: 50,       // =, ?=, !=
     COMPARISON: 60,     // <, >, <=, >=, ?<, ?>, etc.
     INTERVAL: 70,       // :
@@ -84,6 +85,10 @@ const SYMBOL_TABLE = {
     // Function arrow (right associative)
     '->': { precedence: PRECEDENCE.ASSIGNMENT, associativity: 'right', type: 'infix' },
     '=>': { precedence: PRECEDENCE.ASSIGNMENT, associativity: 'right', type: 'infix' },
+    ':->': { precedence: PRECEDENCE.ASSIGNMENT, associativity: 'right', type: 'infix' },
+    
+    // Condition operator
+    '?': { precedence: PRECEDENCE.CONDITION, associativity: 'left', type: 'infix' },
     
     // Property access
     '.': { precedence: PRECEDENCE.PROPERTY, associativity: 'left', type: 'infix' },
@@ -264,7 +269,11 @@ class Parser {
         // Special case for function calls - check if we have an identifier followed by '('
         if (operator.value === '(' && (left.type === 'UserIdentifier' || left.type === 'SystemIdentifier')) {
             this.advance(); // consume '('
-            const args = this.parseFunctionArgs();
+            const args = this.parseFunctionCallArgs();
+            if (this.current.value !== ')') {
+                this.error('Expected closing parenthesis in function call');
+            }
+            this.advance(); // consume ')'
             return this.createNode('FunctionCall', {
                 function: left,
                 arguments: args,
@@ -294,6 +303,89 @@ class Parser {
                 pos: left.pos,
                 original: left.original + operator.original
             });
+        } else if (operator.value === ':->') {
+            // Standard function definition
+            right = this.parseExpression(rightPrec);
+            
+            // Extract parameters if left side is a function call syntax
+            let funcName = left;
+            let parameters = { positional: [], keyword: [], metadata: {} };
+            
+            if (left.type === 'FunctionCall') {
+                funcName = left.function;
+                // Convert function call arguments to parameter definitions
+                parameters = this.convertArgsToParams(left.arguments);
+            }
+            
+            return this.createNode('FunctionDefinition', {
+                name: funcName,
+                parameters: parameters,
+                body: right,
+                type: 'standard',
+                pos: left.pos,
+                original: left.original + operator.original
+            });
+        } else if (operator.value === ':=>') {
+            // Pattern matching function definition
+            right = this.parseExpression(rightPrec);
+            
+            let funcName = left;
+            let parameters = { positional: [], keyword: [], metadata: {} };
+            let patterns = [];
+            let globalMetadata = {};
+            
+            if (left.type === 'FunctionCall') {
+                funcName = left.function;
+                parameters = this.convertArgsToParams(left.arguments);
+            }
+            
+            // Handle different pattern syntax
+            if (right.type === 'Array') {
+                // Array syntax: g :=> [ (x ? x < 0) -> -x, (x) -> x ]
+                patterns = right.elements;
+            } else if (right.type === 'WithMetadata' && right.primary && right.primary.type === 'Array') {
+                // Array with metadata: g :=> [ [(x ? x < 0) -> -x+n, (x) -> x-n] , n := 4]
+                if (Array.isArray(right.primary.elements) && right.primary.elements.length > 0 && right.primary.elements[0].type === 'Array') {
+                    patterns = right.primary.elements[0].elements;
+                } else {
+                    patterns = right.primary.elements;
+                }
+                globalMetadata = right.metadata;
+            } else {
+                // Single pattern: g :=> (x ? x < 0) -> -x
+                patterns = [right];
+            }
+            
+            return this.createNode('PatternMatchingFunction', {
+                name: funcName,
+                parameters: parameters,
+                patterns: patterns,
+                metadata: globalMetadata,
+                pos: left.pos,
+                original: left.original + operator.original
+            });
+        } else if (operator.value === '->') {
+            // Function arrow - handle ParameterList nodes specially
+            right = this.parseExpression(rightPrec);
+            
+            // Check if left side is a ParameterList (from grouping with semicolons)
+            if (left.type === 'Grouping' && left.expression && left.expression.type === 'ParameterList') {
+                return this.createNode('FunctionLambda', {
+                    parameters: left.expression.parameters,
+                    body: right,
+                    pos: left.pos,
+                    original: left.original + operator.original
+                });
+            } else {
+                // Regular binary operation
+                return this.createNode('BinaryOperation', {
+                    operator: operator.value,
+                    left: left,
+                    right: right,
+                    pos: left.pos,
+                    original: left.original + operator.original
+                });
+            }
         } else {
             // Binary operator
             right = this.parseExpression(rightPrec);
@@ -310,7 +402,39 @@ class Parser {
     parseGrouping() {
         const startToken = this.current;
         this.advance(); // consume '('
-        const expr = this.parseExpression(0);
+        
+        // Check if this looks like function parameters by scanning ahead for semicolon
+        let hasSemicolon = false;
+        let tempPos = this.position;
+        let parenDepth = 0;
+        
+        while (tempPos < this.tokens.length) {
+            const token = this.tokens[tempPos];
+            if (token.value === '(') parenDepth++;
+            else if (token.value === ')') {
+                if (parenDepth === 0) break;
+                parenDepth--;
+            }
+            else if (token.value === ';' && parenDepth === 0) {
+                hasSemicolon = true;
+                break;
+            }
+            tempPos++;
+        }
+        
+        let expr;
+        if (hasSemicolon) {
+            // Parse as function parameters
+            const params = this.parseFunctionParameters();
+            expr = this.createNode('ParameterList', {
+                parameters: params,
+                pos: startToken.pos,
+                original: startToken.original
+            });
+        } else {
+            // Parse as regular grouped expression
+            expr = this.parseExpression(0);
+        }
         
         if (this.current.value !== ')') {
             this.error('Expected closing parenthesis');
@@ -673,7 +797,215 @@ class Parser {
         return args;
     }
 
-    // Parse a single statement
+    parseFunctionParameters() {
+        const params = {
+            positional: [],
+            keyword: [],
+            metadata: {}
+        };
+        
+        if (this.current.value === ')') {
+            return params;
+        }
+        
+        let inKeywordSection = false;
+        
+        while (this.current.value !== ')' && this.current.type !== 'End') {
+            if (this.current.value === ';') {
+                inKeywordSection = true;
+                this.advance();
+                continue;
+            }
+            
+            const param = this.parseFunctionParameter(inKeywordSection);
+            
+            if (inKeywordSection) {
+                params.keyword.push(param);
+            } else {
+                params.positional.push(param);
+            }
+            
+            if (this.current.value === ',') {
+                this.advance();
+            } else if (this.current.value !== ')' && this.current.value !== ';') {
+                break;
+            }
+        }
+        
+        return params;
+    }
+
+    parseFunctionParameter(isKeywordOnly = false) {
+        const param = {
+            name: null,
+            defaultValue: null,
+            condition: null,
+            isKeywordOnly: isKeywordOnly
+        };
+        
+        // Parse parameter name
+        if (this.current.type === 'Identifier' && this.current.kind === 'User') {
+            param.name = this.current.value;
+            this.advance();
+        } else {
+            this.error('Expected parameter name');
+        }
+        
+        // Check for default value
+        if (this.current.value === ':=') {
+            this.advance();
+            param.defaultValue = this.parseExpression(PRECEDENCE.ASSIGNMENT + 1);
+        }
+        
+        // Check for condition
+        if (this.current.value === '?') {
+            this.advance();
+            param.condition = this.parseExpression(PRECEDENCE.COMPARISON + 1);
+        }
+        
+        // Keyword-only parameters must have default values
+        if (isKeywordOnly && param.defaultValue === null) {
+            this.error('Keyword-only parameters must have default values');
+        }
+        
+        return param;
+    }
+
+    parseFunctionCallArgs() {
+        const args = {
+            positional: [],
+            keyword: {}
+        };
+        
+        if (this.current.value === ')') {
+            return args;
+        }
+        
+        let inKeywordSection = false;
+        
+        while (this.current.value !== ')' && this.current.type !== 'End') {
+            if (this.current.value === ';') {
+                inKeywordSection = true;
+                this.advance();
+                continue;
+            }
+            
+            if (inKeywordSection) {
+                // Parse keyword argument
+                if (this.current.type === 'Identifier' && this.current.kind === 'User') {
+                    const keyName = this.current.value;
+                    const keyPos = this.current.pos;
+                    const keyOriginal = this.current.original;
+                    this.advance();
+                    
+                    if (this.current.value === ':=') {
+                        this.advance();
+                        const value = this.parseExpression(PRECEDENCE.ASSIGNMENT + 1);
+                        args.keyword[keyName] = value;
+                    } else {
+                        // Shorthand: n := n (identifier is both key and value)
+                        args.keyword[keyName] = this.createNode('UserIdentifier', {
+                            name: keyName,
+                            pos: keyPos,
+                            original: keyOriginal
+                        });
+                    }
+                } else {
+                    this.error('Expected identifier for keyword argument');
+                }
+            } else {
+                // Parse positional argument
+                args.positional.push(this.parseExpression(0));
+            }
+            
+            if (this.current.value === ',') {
+                this.advance();
+            } else if (this.current.value !== ')' && this.current.value !== ';') {
+                break;
+            }
+        }
+        
+        return args;
+    }
+
+    convertArgsToParams(args) {
+        const params = {
+            positional: [],
+            keyword: [],
+            metadata: {}
+        };
+
+        // Handle new function call argument structure
+        if (args.positional && args.keyword) {
+            // Convert positional arguments
+            for (const arg of args.positional) {
+                const param = this.parseParameterFromArg(arg, false);
+                params.positional.push(param);
+            }
+
+            // Convert keyword arguments to keyword parameters
+            for (const [key, value] of Object.entries(args.keyword)) {
+                const param = {
+                    name: key,
+                    defaultValue: null,
+                    condition: null,
+                    isKeywordOnly: true
+                };
+                
+                // Handle keyword argument values which can be expressions with conditions
+                if (value.type === 'BinaryOperation' && value.operator === '?') {
+                    // Direct condition: n -> (2 ? condition)
+                    param.defaultValue = value.left;
+                    param.condition = value.right;
+                } else {
+                    // Simple value
+                    param.defaultValue = value;
+                }
+                
+                params.keyword.push(param);
+            }
+        } else if (Array.isArray(args)) {
+            // Handle legacy array format
+            for (const arg of args) {
+                const param = this.parseParameterFromArg(arg, false);
+                params.positional.push(param);
+            }
+        }
+
+        return params;
+    }
+
+    parseParameterFromArg(arg, isKeywordOnly) {
+        const param = {
+            name: null,
+            defaultValue: null,
+            condition: null,
+            isKeywordOnly: isKeywordOnly
+        };
+
+        if (arg.type === 'BinaryOperation' && arg.operator === ':=') {
+            // Parameter with default value: x := 5 or x := 5 ? condition
+            param.name = arg.left.name || arg.left.value;
+                    
+            // Check if the right side has a condition
+            if (arg.right.type === 'BinaryOperation' && arg.right.operator === '?') {
+                param.defaultValue = arg.right.left;  
+                param.condition = arg.right.right;
+            } else {
+                param.defaultValue = arg.right;
+            }
+        } else if (arg.type === 'BinaryOperation' && arg.operator === '?') {
+            // Parameter with condition: x ? condition
+            param.name = arg.left.name || arg.left.value;
+            param.condition = arg.right;
+        } else if (arg.type === 'UserIdentifier' || (arg.type === 'Identifier' && arg.kind === 'User')) {
+            // Simple parameter
+            param.name = arg.name || arg.value;
+        }
+
+        return param;
+    }
+
     parseStatement() {
         if (this.current.type === 'End') {
             return null;
