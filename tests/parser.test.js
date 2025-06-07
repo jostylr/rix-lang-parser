@@ -1534,6 +1534,172 @@ describe("RiX Parser", () => {
     });
   });
 
+  describe("Comments", () => {
+    test("line comment only", () => {
+      const ast = parseCode("# This is a simple line comment");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Comment",
+          value: " This is a simple line comment",
+          kind: "comment",
+        },
+      ]);
+    });
+
+    test("block comment only", () => {
+      const ast = parseCode("/* This is a block comment */");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Comment",
+          value: " This is a block comment ",
+          kind: "comment",
+        },
+      ]);
+    });
+
+    test("nested block comment", () => {
+      const ast = parseCode("/**hi /* argh */ whatever**/");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Comment",
+          value: "hi /* argh */ whatever",
+          kind: "comment",
+        },
+      ]);
+    });
+
+    test("comment before expression", () => {
+      const ast = parseCode("# Calculate sum\n2 + 3");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Comment",
+          value: " Calculate sum",
+          kind: "comment",
+        },
+        {
+          type: "BinaryOperation",
+          operator: "+",
+          left: { type: "Number", value: "2" },
+          right: { type: "Number", value: "3" },
+        },
+      ]);
+    });
+
+    test("simple expression with trailing comment", () => {
+      const ast = parseCode("5\n# This is a comment");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Number",
+          value: "5",
+        },
+        {
+          type: "Comment",
+          value: " This is a comment",
+          kind: "comment",
+        },
+      ]);
+    });
+
+    test("multiple standalone comments", () => {
+      const ast = parseCode("# First comment\n# Second comment");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Comment",
+          value: " First comment",
+          kind: "comment",
+        },
+        {
+          type: "Comment",
+          value: " Second comment",
+          kind: "comment",
+        },
+      ]);
+    });
+
+    test("comment between numbers", () => {
+      const ast = parseCode("5\n# comment\n10");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Number",
+          value: "5",
+        },
+        {
+          type: "Comment",
+          value: " comment",
+          kind: "comment",
+        },
+        {
+          type: "Number",
+          value: "10",
+        },
+      ]);
+    });
+
+    test("multiline block comment", () => {
+      const ast = parseCode("/* This is a\n   multiline\n   comment */");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Comment",
+          value: " This is a\n   multiline\n   comment ",
+          kind: "comment",
+        },
+      ]);
+    });
+
+    test("comment with special characters", () => {
+      const ast = parseCode("# Comment with symbols: +*-/=<>{}[]()");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Comment",
+          value: " Comment with symbols: +*-/=<>{}[]()",
+          kind: "comment",
+        },
+      ]);
+    });
+
+    test("empty line comment", () => {
+      const ast = parseCode("#");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Comment",
+          value: "",
+          kind: "comment",
+        },
+      ]);
+    });
+
+    test("empty block comment", () => {
+      const ast = parseCode("/* */");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Comment",
+          value: " ",
+          kind: "comment",
+        },
+      ]);
+    });
+
+    test("comment with statement terminator", () => {
+      const ast = parseCode("x := 5; # assignment comment");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "BinaryOperation",
+            operator: ":=",
+            left: { type: "UserIdentifier", name: "x" },
+            right: { type: "Number", value: "5" },
+          },
+        },
+        {
+          type: "Comment",
+          value: " assignment comment",
+          kind: "comment",
+        },
+      ]);
+    });
+  });
+
   describe("Error handling", () => {
     test("unmatched parenthesis throws error", () => {
       expect(() => parseCode("(2 + 3;")).toThrow(

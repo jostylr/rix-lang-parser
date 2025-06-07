@@ -2,7 +2,7 @@
 
 ## Overview
 
-The RiX parser is a Pratt parser implementation that converts tokenized RiX code into Abstract Syntax Trees (ASTs). It handles the full spectrum of RiX language features including mathematical expressions, assignments, function calls, pipe operations, metadata annotations, and more.
+The RiX parser is a Pratt parser implementation that converts tokenized RiX code into Abstract Syntax Trees (ASTs). It handles the full spectrum of RiX language features including mathematical expressions, assignments, function calls, pipe operations, metadata annotations, comments, and more.
 
 ## Architecture
 
@@ -203,6 +203,57 @@ Represents string literals (preserved as-is):
     kind: string,           // String type: 'quote', 'backtick', 'comment', etc.
     pos: [start, delim, end],
     original: string
+}
+```
+
+#### Comment
+Represents comment nodes in the AST. Comments are treated as standalone statements and are preserved in the parse tree:
+```javascript
+{
+    type: "Comment",
+    value: string,          // Comment content (without delimiters)
+    kind: "comment",        // Always "comment"
+    pos: [start, delim, end],
+    original: string        // Original text including comment delimiters
+}
+```
+
+**Comment Types:**
+- **Line comments**: `# comment text` - extends to end of line
+- **Block comments**: `/* comment text */` - can span multiple lines
+- **Nested block comments**: `/**outer /* inner */ content**/` - supports nesting with matching star counts
+
+**Parsing Behavior:**
+- Comments are parsed as standalone statements in the AST
+- Comments act as expression terminators, separating adjacent expressions
+- Comments can appear before, after, or between other code constructs
+- Empty comments (`#` or `/* */`) are preserved with empty value strings
+- Comment content preserves original formatting including whitespace and newlines
+
+**Examples:**
+```javascript
+// Input: "# This is a line comment"
+{
+    type: "Comment",
+    value: " This is a line comment",
+    kind: "comment",
+    original: "# This is a line comment"
+}
+
+// Input: "/* Block comment */"
+{
+    type: "Comment", 
+    value: " Block comment ",
+    kind: "comment",
+    original: "/* Block comment */"
+}
+
+// Input: "/**nested /* inner */ comment**/"
+{
+    type: "Comment",
+    value: "nested /* inner */ comment", 
+    kind: "comment",
+    original: "/**nested /* inner */ comment**/"
 }
 ```
 
@@ -913,6 +964,103 @@ It's crucial to understand the difference between code blocks `{{ }}` and brace 
     }
 }
 ```
+
+## Comments
+
+The RiX parser includes comprehensive support for comments, treating them as first-class AST nodes rather than discarding them during parsing. This allows tools to preserve documentation, implement preprocessing directives, or perform comment-based analysis.
+
+### Comment Syntax
+
+The parser supports two types of comments:
+
+**Line Comments (`#`)**
+```javascript
+# This is a line comment
+x = 5  # Inline comment
+```
+
+**Block Comments (`/* */`)**
+```javascript
+/* This is a block comment */
+/* Multi-line
+   block comment
+   spanning several lines */
+```
+
+**Nested Block Comments**
+```javascript
+/**outer /* nested inner */ content**/
+/***deeply /* nested /* comment */ structure */ content***/
+```
+
+### Comment Parsing Behavior
+
+1. **Standalone Statements**: Comments are parsed as independent `Comment` nodes in the AST
+2. **Expression Separators**: Comments act as implicit statement terminators, breaking expression parsing
+3. **Content Preservation**: All comment content is preserved exactly as written (including whitespace)
+4. **Position Tracking**: Comments include precise source position information
+
+### Comment AST Structure
+
+Each comment produces a dedicated AST node:
+```javascript
+{
+    type: "Comment",
+    value: string,          // Comment content without delimiters
+    kind: "comment",        // Always "comment" 
+    pos: [start, delim, end],
+    original: string        // Original text including delimiters
+}
+```
+
+### Parsing Examples
+
+**Simple Line Comment**
+```javascript
+// Input: "# Calculate result"
+// AST:
+[{
+    type: "Comment",
+    value: " Calculate result",
+    kind: "comment",
+    original: "# Calculate result"
+}]
+```
+
+**Comment Between Expressions**
+```javascript
+// Input: "x = 5\n# Set variable\ny = 10"
+// AST:
+[
+    { type: "BinaryOperation", operator: "=", ... },
+    { type: "Comment", value: " Set variable", ... },
+    { type: "BinaryOperation", operator: "=", ... }
+]
+```
+
+**Nested Block Comment**
+```javascript
+// Input: "/**outer /* inner */ content**/"
+// AST:
+[{
+    type: "Comment",
+    value: "outer /* inner */ content",
+    kind: "comment", 
+    original: "/**outer /* inner */ content**/"
+}]
+```
+
+### Integration with Code
+
+Comments integrate seamlessly with all RiX language constructs:
+
+- **Before expressions**: `# comment\nexpression`
+- **After expressions**: `expression\n# comment`
+- **Between statements**: `stmt1; # comment\nstmt2`
+- **In function definitions**: Comments preserve documentation
+- **With metadata**: Comments can document complex annotations
+
+This comment support enables rich documentation workflows and tooling that can process both code and its associated documentation in a unified manner.
 
 ## Error Handling
 

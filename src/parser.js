@@ -183,6 +183,11 @@ class Parser {
                 break;
             }
 
+            // Treat comments as expression terminators
+            if (this.current.type === 'String' && this.current.kind === 'comment') {
+                break;
+            }
+
             // Special case for function calls
             if (this.current.value === '(' && (left.type === 'UserIdentifier' || left.type === 'SystemIdentifier')) {
                 left = this.parseInfix(left, { precedence: PRECEDENCE.POSTFIX, type: 'postfix' });
@@ -1038,6 +1043,18 @@ class Parser {
             return null;
         }
 
+        // Handle comments as standalone nodes
+        if (this.current.type === 'String' && this.current.kind === 'comment') {
+            const commentToken = this.current;
+            this.advance();
+            return this.createNode('Comment', {
+                value: commentToken.value,
+                kind: commentToken.kind,
+                original: commentToken.original,
+                pos: commentToken.pos
+            });
+        }
+
         const expr = this.parseExpression(0);
         
         // Check for semicolon
@@ -1058,6 +1075,19 @@ class Parser {
         const statements = [];
         
         while (this.current.type !== 'End') {
+            // Collect standalone comments
+            if (this.current.type === 'String' && this.current.kind === 'comment') {
+                const commentToken = this.current;
+                this.advance();
+                statements.push(this.createNode('Comment', {
+                    value: commentToken.value,
+                    kind: commentToken.kind,
+                    original: commentToken.original,
+                    pos: commentToken.pos
+                }));
+                continue;
+            }
+            
             const stmt = this.parseStatement();
             if (stmt) {
                 statements.push(stmt);
