@@ -257,6 +257,12 @@ class Parser {
                     return this.parseCodeBlock();
                 } else if (token.value === '+' || token.value === '-') {
                     return this.parseUnaryOperator();
+                } else if (token.value === '_') {
+                    // Underscore is always a null symbol
+                    this.advance();
+                    return this.createNode('NULL', {
+                        original: token.original
+                    });
                 } else {
                     this.error(`Unexpected symbol: ${token.value}`);
                 }
@@ -439,8 +445,19 @@ class Parser {
         const startToken = this.current;
         this.advance(); // consume '('
         
-        // Check if this looks like function parameters by scanning ahead for semicolon
+        // Check for empty parentheses first
+        if (this.current.value === ')') {
+            this.advance(); // consume ')'
+            return this.createNode('Tuple', {
+                elements: [],
+                pos: startToken.pos,
+                original: startToken.original
+            });
+        }
+        
+        // Scan ahead to determine what type of content we have
         let hasSemicolon = false;
+        let hasComma = false;
         let tempPos = this.position;
         let parenDepth = 0;
         
@@ -451,25 +468,47 @@ class Parser {
                 if (parenDepth === 0) break;
                 parenDepth--;
             }
-            else if (token.value === ';' && parenDepth === 0) {
-                hasSemicolon = true;
-                break;
+            else if (parenDepth === 0) {
+                if (token.value === ';') {
+                    hasSemicolon = true;
+                    break;
+                } else if (token.value === ',') {
+                    hasComma = true;
+                    // Don't break - continue scanning for semicolons
+                }
             }
             tempPos++;
         }
         
-        let expr;
+        let result;
         if (hasSemicolon) {
             // Parse as function parameters
             const params = this.parseFunctionParameters();
-            expr = this.createNode('ParameterList', {
-                parameters: params,
+            result = this.createNode('Grouping', {
+                expression: this.createNode('ParameterList', {
+                    parameters: params,
+                    pos: startToken.pos,
+                    original: startToken.original
+                }),
+                pos: startToken.pos,
+                original: startToken.original
+            });
+        } else if (hasComma) {
+            // Parse as tuple
+            const elements = this.parseTupleElements();
+            result = this.createNode('Tuple', {
+                elements: elements,
                 pos: startToken.pos,
                 original: startToken.original
             });
         } else {
             // Parse as regular grouped expression
-            expr = this.parseExpression(0);
+            const expr = this.parseExpression(0);
+            result = this.createNode('Grouping', {
+                expression: expr,
+                pos: startToken.pos,
+                original: startToken.original
+            });
         }
         
         if (this.current.value !== ')') {
@@ -477,11 +516,40 @@ class Parser {
         }
         this.advance(); // consume ')'
         
-        return this.createNode('Grouping', {
-            expression: expr,
-            pos: startToken.pos,
-            original: startToken.original
-        });
+        return result;
+    }
+
+    parseTupleElements() {
+        const elements = [];
+        
+        // Parse first element
+        let firstElement = this.parseTupleElement();
+        elements.push(firstElement);
+        
+        // Look for trailing comma or more elements
+        while (this.current.value === ',') {
+            this.advance(); // consume ','
+            
+            // Check for consecutive commas (syntax error)
+            if (this.current.value === ',' || this.current.value === ')') {
+                if (this.current.value === ',') {
+                    this.error('Consecutive commas not allowed in tuples');
+                }
+                // Trailing comma case - we're done
+                break;
+            }
+            
+            // Parse next element
+            const element = this.parseTupleElement();
+            elements.push(element);
+        }
+        
+        return elements;
+    }
+
+    parseTupleElement() {
+        // Parse regular expression (underscore is handled by parsePrefix)
+        return this.parseExpression(0);
     }
 
     parseArray() {

@@ -1316,6 +1316,206 @@ describe("RiX Parser", () => {
     });
   });
 
+  describe("Tuples", () => {
+    test("empty tuple", () => {
+      const ast = parseCode("();");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "Tuple",
+            elements: [],
+          },
+        },
+      ]);
+    });
+
+    test("single element without comma is grouped expression", () => {
+      const ast = parseCode("(3);");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "Grouping",
+            expression: { type: "Number", value: "3" },
+          },
+        },
+      ]);
+    });
+
+    test("singleton tuple with trailing comma", () => {
+      const ast = parseCode("(3,);");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "Tuple",
+            elements: [{ type: "Number", value: "3" }],
+          },
+        },
+      ]);
+    });
+
+    test("two-element tuple", () => {
+      const ast = parseCode("(3, 4);");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "Tuple",
+            elements: [
+              { type: "Number", value: "3" },
+              { type: "Number", value: "4" },
+            ],
+          },
+        },
+      ]);
+    });
+
+    test("three-element tuple", () => {
+      const ast = parseCode("(a, b, c);");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "Tuple",
+            elements: [
+              { type: "UserIdentifier", name: "a" },
+              { type: "UserIdentifier", name: "b" },
+              { type: "UserIdentifier", name: "c" },
+            ],
+          },
+        },
+      ]);
+    });
+
+    test("tuple with underscore as null", () => {
+      const ast = parseCode("(3, _, 2);");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "Tuple",
+            elements: [
+              { type: "Number", value: "3" },
+              { type: "NULL" },
+              { type: "Number", value: "2" },
+            ],
+          },
+        },
+      ]);
+    });
+
+    test("tuple with multiple underscores", () => {
+      const ast = parseCode("(_, 5, _);");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "Tuple",
+            elements: [
+              { type: "NULL" },
+              { type: "Number", value: "5" },
+              { type: "NULL" },
+            ],
+          },
+        },
+      ]);
+    });
+
+    test("tuple with expressions", () => {
+      const ast = parseCode("(a + b, x * y);");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "Tuple",
+            elements: [
+              {
+                type: "BinaryOperation",
+                operator: "+",
+                left: { type: "UserIdentifier", name: "a" },
+                right: { type: "UserIdentifier", name: "b" },
+              },
+              {
+                type: "BinaryOperation",
+                operator: "*",
+                left: { type: "UserIdentifier", name: "x" },
+                right: { type: "UserIdentifier", name: "y" },
+              },
+            ],
+          },
+        },
+      ]);
+    });
+
+    test("nested tuple", () => {
+      const ast = parseCode("((1, 2), (3, 4));");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "Tuple",
+            elements: [
+              {
+                type: "Tuple",
+                elements: [
+                  { type: "Number", value: "1" },
+                  { type: "Number", value: "2" },
+                ],
+              },
+              {
+                type: "Tuple",
+                elements: [
+                  { type: "Number", value: "3" },
+                  { type: "Number", value: "4" },
+                ],
+              },
+            ],
+          },
+        },
+      ]);
+    });
+
+    test("tuple with trailing comma", () => {
+      const ast = parseCode("(1, 2, 3,);");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "Tuple",
+            elements: [
+              { type: "Number", value: "1" },
+              { type: "Number", value: "2" },
+              { type: "Number", value: "3" },
+            ],
+          },
+        },
+      ]);
+    });
+
+    test("consecutive commas should throw error", () => {
+      expect(() => parseCode("(3,, 2);")).toThrow(
+        /Consecutive commas not allowed in tuples/
+      );
+    });
+
+    test("underscore is always null symbol", () => {
+      const ast = parseCode("_ := 5;");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "BinaryOperation",
+            operator: ":=",
+            left: { type: "NULL" },
+            right: { type: "Number", value: "5" },
+          },
+        },
+      ]);
+    });
+  });
+
   describe("Number and string preservation", () => {
     test("preserves number formats", () => {
       const ast = parseCode("3.14;");

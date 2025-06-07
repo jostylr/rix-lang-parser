@@ -375,6 +375,249 @@ Represents property/array access:
 }
 ```
 
+#### Tuple
+Represents tuple literals with zero or more elements:
+```javascript
+{
+    type: "Tuple",
+    elements: [ASTNode],    // Array of tuple elements
+    pos: [start, delim, end],
+    original: string
+}
+```
+
+#### NULL
+Represents null/missing values (underscore `_` symbol):
+```javascript
+{
+    type: "NULL",
+    pos: [start, delim, end],
+    original: string
+}
+```
+
+## Tuples
+
+### Overview
+Tuples in RiX are ordered collections of values enclosed in parentheses. They provide a way to group multiple values together while maintaining their order and allowing mixed data types.
+
+### Syntax Rules
+
+1. **Parentheses**: Tuples use parentheses `()` for delimitation
+2. **Comma Separation**: Elements are separated by commas `,`
+3. **Comma Detection**: Presence of at least one comma indicates a tuple
+4. **Grouping vs Tuples**: 
+   - `(expression)` → Grouped expression (no comma)
+   - `(expression,)` → Singleton tuple (with comma)
+5. **Underscore as Null**: `_` symbol always represents `null`
+6. **No Empty Slots**: Consecutive commas are syntax errors
+
+### Examples
+
+#### Empty Tuple
+```rix
+()
+```
+**AST:**
+```javascript
+{
+    type: "Tuple",
+    elements: []
+}
+```
+
+#### Grouped Expression (Not a Tuple)
+```rix
+(42)
+```
+**AST:**
+```javascript
+{
+    type: "Grouping",
+    expression: {
+        type: "Number",
+        value: "42"
+    }
+}
+```
+
+#### Singleton Tuple
+```rix
+(42,)
+```
+**AST:**
+```javascript
+{
+    type: "Tuple",
+    elements: [
+        { type: "Number", value: "42" }
+    ]
+}
+```
+
+#### Multi-Element Tuple
+```rix
+(1, 2, 3)
+```
+**AST:**
+```javascript
+{
+    type: "Tuple",
+    elements: [
+        { type: "Number", value: "1" },
+        { type: "Number", value: "2" },
+        { type: "Number", value: "3" }
+    ]
+}
+```
+
+#### Tuple with Null Values
+```rix
+(x, _, y)
+```
+**AST:**
+```javascript
+{
+    type: "Tuple",
+    elements: [
+        { type: "UserIdentifier", name: "x" },
+        { type: "NULL" },
+        { type: "UserIdentifier", name: "y" }
+    ]
+}
+```
+
+#### Underscore as Null Symbol
+```rix
+_ := 42
+```
+**AST:**
+```javascript
+{
+    type: "BinaryOperation",
+    operator: ":=",
+    left: { type: "NULL" },
+    right: { type: "Number", value: "42" }
+}
+```
+
+#### Nested Tuples
+```rix
+((1, 2), (3, 4))
+```
+**AST:**
+```javascript
+{
+    type: "Tuple",
+    elements: [
+        {
+            type: "Tuple",
+            elements: [
+                { type: "Number", value: "1" },
+                { type: "Number", value: "2" }
+            ]
+        },
+        {
+            type: "Tuple", 
+            elements: [
+                { type: "Number", value: "3" },
+                { type: "Number", value: "4" }
+            ]
+        }
+    ]
+}
+```
+
+#### Tuple with Expressions
+```rix
+(a + b, SIN(x), _)
+```
+**AST:**
+```javascript
+{
+    type: "Tuple",
+    elements: [
+        {
+            type: "BinaryOperation",
+            operator: "+",
+            left: { type: "UserIdentifier", name: "a" },
+            right: { type: "UserIdentifier", name: "b" }
+        },
+        {
+            type: "FunctionCall",
+            function: { type: "SystemIdentifier", name: "SIN" },
+            arguments: { positional: [{ type: "UserIdentifier", name: "x" }], keyword: [] }
+        },
+        { type: "NULL" }
+    ]
+}
+```
+
+#### Trailing Commas
+```rix
+(1, 2, 3,)
+```
+Trailing commas are allowed and create the same AST as without them.
+
+### Use Cases
+
+#### Coordinate Representation
+```rix
+point := (x, y, z);
+color := (red, green, blue, alpha);
+```
+
+#### Multiple Return Values
+```rix
+result := (status, data, error);
+```
+
+#### Sparse Data with Nulls
+```rix
+record := (name, _, email, _, phone);
+value := _;  // Underscore is always null symbol
+```
+
+#### Function Arguments Grouping
+```rix
+args := (param1, param2, param3);
+result := someFunction(args);
+```
+
+### Error Cases
+
+#### Consecutive Commas (Syntax Error)
+```rix
+(1,, 2)     // Error: Consecutive commas not allowed
+(a, , b)    // Error: Empty element not allowed
+```
+
+#### Empty Elements (Syntax Error)
+```rix
+(,)         // Error: Cannot start with comma
+(1, 2,, 3)  // Error: Consecutive commas
+```
+
+### Distinction from Other Constructs
+
+| Syntax | Type | Description |
+|--------|------|-------------|
+| `(expr)` | Grouping | Single expression, no comma |
+| `(expr,)` | Tuple | Singleton tuple with comma |
+| `(a, b)` | Tuple | Multi-element tuple |
+| `[a, b]` | Array | Array literal |
+| `{a, b}` | Set | Set literal |
+| `(_, val)` | Tuple | Underscore as null symbol |
+
+### Implementation Notes
+
+- **Parser Logic**: Comma detection during parentheses scanning determines tuple vs grouping
+- **Underscore Handling**: `_` is always parsed as a null symbol, regardless of context
+- **Dynamic Access**: `_` between identifiers enables dynamic access (future feature)
+- **Error Recovery**: Clear error messages for common mistakes like consecutive commas
+- **Precedence**: Tuple creation has no precedence conflicts as it's delimiter-based
+- **Memory**: Efficient representation with direct element array storage
+
 ## Metadata and Property Annotations
 
 The parser supports metadata annotations within array syntax using the `:=` operator. When an array contains key-value pairs with `:=`, it creates a `WithMetadata` node instead of a regular `Array` node.
