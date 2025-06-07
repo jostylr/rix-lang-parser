@@ -330,7 +330,7 @@ class Parser {
             right = this.parseExpression(rightPrec);
             
             let funcName = left;
-            let parameters = { positional: [], keyword: [], metadata: {} };
+            let parameters = { positional: [], keyword: [], conditionals: [], metadata: {} };
             let patterns = [];
             let globalMetadata = {};
             
@@ -339,21 +339,52 @@ class Parser {
                 parameters = this.convertArgsToParams(left.arguments);
             }
             
-            // Handle different pattern syntax
+            // Handle different pattern syntax and parse each pattern as a function
+            let rawPatterns = [];
             if (right.type === 'Array') {
                 // Array syntax: g :=> [ (x ? x < 0) -> -x, (x) -> x ]
-                patterns = right.elements;
+                rawPatterns = right.elements;
             } else if (right.type === 'WithMetadata' && right.primary && right.primary.type === 'Array') {
                 // Array with metadata: g :=> [ [(x ? x < 0) -> -x+n, (x) -> x-n] , n := 4]
                 if (Array.isArray(right.primary.elements) && right.primary.elements.length > 0 && right.primary.elements[0].type === 'Array') {
-                    patterns = right.primary.elements[0].elements;
+                    rawPatterns = right.primary.elements[0].elements;
                 } else {
-                    patterns = right.primary.elements;
+                    rawPatterns = right.primary.elements;
                 }
                 globalMetadata = right.metadata;
             } else {
                 // Single pattern: g :=> (x ? x < 0) -> -x
-                patterns = [right];
+                rawPatterns = [right];
+            }
+            
+            // Parse each pattern as a function definition
+            for (const pattern of rawPatterns) {
+                if (pattern.type === 'BinaryOperation' && pattern.operator === '->') {
+                    const patternFunc = {
+                        parameters: { positional: [], keyword: [], conditionals: [], metadata: {} },
+                        body: pattern.right
+                    };
+                    
+                    // Parse the left side (parameters with potential conditions)
+                    if (pattern.left.type === 'Grouping') {
+                        const paramExpr = pattern.left.expression;
+                        if (paramExpr.type === 'BinaryOperation' && paramExpr.operator === '?') {
+                            // (x ? condition) format
+                            const paramName = paramExpr.left.name || paramExpr.left.value;
+                            patternFunc.parameters.positional.push({ name: paramName, defaultValue: null });
+                            patternFunc.parameters.conditionals.push(paramExpr.right);
+                        } else if (paramExpr.type === 'UserIdentifier') {
+                            // Simple (x) format
+                            patternFunc.parameters.positional.push({ 
+                                name: paramExpr.name || paramExpr.value, 
+                                defaultValue: null 
+                            });
+                        }
+                        // TODO: Handle more complex parameter expressions
+                    }
+                    
+                    patterns.push(patternFunc);
+                }
             }
             
             return this.createNode('PatternMatchingFunction', {
@@ -642,11 +673,12 @@ class Parser {
                 elements.push(element);
                 
                 // Check for type indicators
-                if (element.type === 'BinaryOperation') {
+                if (element.type === 'PatternMatchingFunction') {
+                    // Immediately throw error for pattern matching in braces
+                    this.error('Pattern matching should use array syntax [ ] with sequential evaluation, not brace syntax { }. Use format: name :=> [ pattern1, pattern2, ... ]');
+                } else if (element.type === 'BinaryOperation') {
                     if (element.operator === ':=') {
                         hasAssignments = true;
-                    } else if (element.operator === ':=>') {
-                        hasPatternMatches = true;
                     } else if (element.operator === ':=:' || element.operator === ':>:' || 
                               element.operator === ':<:' || element.operator === ':<=:' || 
                               element.operator === ':>=:') {
@@ -679,11 +711,6 @@ class Parser {
                 this.error('Cannot mix equations with other assignment types');
             }
             containerType = 'System';
-        } else if (hasPatternMatches) {
-            if (hasAssignments) {
-                this.error('Cannot mix pattern matches with other assignment types');
-            }
-            containerType = 'PatternMatch';
         } else if (hasAssignments) {
             containerType = 'Map';
         } else {
@@ -696,12 +723,6 @@ class Parser {
             for (const element of elements) {
                 if (element.type !== 'BinaryOperation' || element.operator !== ':=') {
                     this.error('Map containers must contain only key-value pairs with :=');
-                }
-            }
-        } else if (containerType === 'PatternMatch') {
-            for (const element of elements) {
-                if (element.type !== 'BinaryOperation' || element.operator !== ':=>') {
-                    this.error('Pattern-match containers must contain only pattern-match pairs with :=>');
                 }
             }
         } else if (containerType === 'System') {
@@ -801,6 +822,7 @@ class Parser {
         const params = {
             positional: [],
             keyword: [],
+            conditionals: [],
             metadata: {}
         };
         
@@ -825,6 +847,13 @@ class Parser {
                 params.positional.push(param);
             }
             
+            // Check for condition after parameter
+            if (this.current.value === '?') {
+                this.advance();
+                const condition = this.parseExpression(PRECEDENCE.CONDITION + 1);
+                params.conditionals.push(condition);
+            }
+            
             if (this.current.value === ',') {
                 this.advance();
             } else if (this.current.value !== ')' && this.current.value !== ';') {
@@ -838,9 +867,7 @@ class Parser {
     parseFunctionParameter(isKeywordOnly = false) {
         const param = {
             name: null,
-            defaultValue: null,
-            condition: null,
-            isKeywordOnly: isKeywordOnly
+            defaultValue: null
         };
         
         // Parse parameter name
@@ -855,12 +882,6 @@ class Parser {
         if (this.current.value === ':=') {
             this.advance();
             param.defaultValue = this.parseExpression(PRECEDENCE.ASSIGNMENT + 1);
-        }
-        
-        // Check for condition
-        if (this.current.value === '?') {
-            this.advance();
-            param.condition = this.parseExpression(PRECEDENCE.COMPARISON + 1);
         }
         
         // Keyword-only parameters must have default values
@@ -932,6 +953,7 @@ class Parser {
         const params = {
             positional: [],
             keyword: [],
+            conditionals: [],
             metadata: {}
         };
 
@@ -939,24 +961,25 @@ class Parser {
         if (args.positional && args.keyword) {
             // Convert positional arguments
             for (const arg of args.positional) {
-                const param = this.parseParameterFromArg(arg, false);
-                params.positional.push(param);
+                const result = this.parseParameterFromArg(arg, false);
+                params.positional.push(result.param);
+                if (result.condition) {
+                    params.conditionals.push(result.condition);
+                }
             }
 
             // Convert keyword arguments to keyword parameters
             for (const [key, value] of Object.entries(args.keyword)) {
                 const param = {
                     name: key,
-                    defaultValue: null,
-                    condition: null,
-                    isKeywordOnly: true
+                    defaultValue: null
                 };
                 
                 // Handle keyword argument values which can be expressions with conditions
                 if (value.type === 'BinaryOperation' && value.operator === '?') {
                     // Direct condition: n -> (2 ? condition)
                     param.defaultValue = value.left;
-                    param.condition = value.right;
+                    params.conditionals.push(value.right);
                 } else {
                     // Simple value
                     param.defaultValue = value;
@@ -967,8 +990,11 @@ class Parser {
         } else if (Array.isArray(args)) {
             // Handle legacy array format
             for (const arg of args) {
-                const param = this.parseParameterFromArg(arg, false);
-                params.positional.push(param);
+                const result = this.parseParameterFromArg(arg, false);
+                params.positional.push(result.param);
+                if (result.condition) {
+                    params.conditionals.push(result.condition);
+                }
             }
         }
 
@@ -976,34 +1002,35 @@ class Parser {
     }
 
     parseParameterFromArg(arg, isKeywordOnly) {
-        const param = {
-            name: null,
-            defaultValue: null,
-            condition: null,
-            isKeywordOnly: isKeywordOnly
+        const result = {
+            param: {
+                name: null,
+                defaultValue: null
+            },
+            condition: null
         };
 
         if (arg.type === 'BinaryOperation' && arg.operator === ':=') {
             // Parameter with default value: x := 5 or x := 5 ? condition
-            param.name = arg.left.name || arg.left.value;
+            result.param.name = arg.left.name || arg.left.value;
                     
             // Check if the right side has a condition
             if (arg.right.type === 'BinaryOperation' && arg.right.operator === '?') {
-                param.defaultValue = arg.right.left;  
-                param.condition = arg.right.right;
+                result.param.defaultValue = arg.right.left;  
+                result.condition = arg.right.right;
             } else {
-                param.defaultValue = arg.right;
+                result.param.defaultValue = arg.right;
             }
         } else if (arg.type === 'BinaryOperation' && arg.operator === '?') {
             // Parameter with condition: x ? condition
-            param.name = arg.left.name || arg.left.value;
-            param.condition = arg.right;
+            result.param.name = arg.left.name || arg.left.value;
+            result.condition = arg.right;
         } else if (arg.type === 'UserIdentifier' || (arg.type === 'Identifier' && arg.kind === 'User')) {
             // Simple parameter
-            param.name = arg.name || arg.value;
+            result.param.name = arg.name || arg.value;
         }
 
-        return param;
+        return result;
     }
 
     parseStatement() {

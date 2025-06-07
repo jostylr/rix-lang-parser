@@ -70,11 +70,11 @@ passed += test('{name := "John", age := 30};', 'Map', 'Mixed value types');
 passed += test('{x := 5, y := x * 2, z := SIN(PI/4)};', 'Map', 'Expression values');
 total += 3;
 
-// PatternMatch container tests
-console.log('\nPatternMatch Containers:');
-passed += test('{(x) :=> x + 1};', 'PatternMatch', 'Single pattern');
-passed += test('{(0) :=> "zero", (1) :=> "one"};', 'PatternMatch', 'Multiple patterns');
-passed += test('{(n) :=> n^2, (m) :=> SIN(m)};', 'PatternMatch', 'Mathematical patterns');
+// PatternMatch container tests (these should error - brace syntax not allowed)
+console.log('\nPatternMatch Error Cases:');
+passed += testError('{(x) :=> x + 1};', 'Pattern matching should use array syntax', 'Single pattern with braces');
+passed += testError('{(0) :=> "zero", (1) :=> "one"};', 'Pattern matching should use array syntax', 'Multiple patterns with braces');
+passed += testError('{(n) :=> n^2, (m) :=> SIN(m)};', 'Pattern matching should use array syntax', 'Mathematical patterns with braces');
 total += 3;
 
 // System container tests
@@ -87,7 +87,7 @@ total += 3;
 // Error cases
 console.log('\nError Cases:');
 passed += testError('{a := 1, b, c := 3};', 'Map containers must contain only key-value pairs', 'Mixed map/set');
-passed += testError('{(x) :=> x + 1, a := 2};', 'Cannot mix pattern matches', 'Mixed pattern/assignment');
+passed += testError('{(x) :=> x + 1, a := 2};', 'Pattern matching should use array syntax', 'Brace pattern syntax');
 passed += testError('{x :=: 3, a := 2};', 'System containers must contain only equations', 'Mixed equation/assignment');
 passed += testError('{x :=: 3*x + 2, y :=: x};', 'System containers must contain only equations', 'System without semicolons');
 total += 4;
