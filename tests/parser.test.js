@@ -83,7 +83,6 @@ describe("RiX Parser", () => {
               left: { type: "UserIdentifier", name: "x" },
               right: { type: "Number", value: "1" },
             },
-            type: "standard",
           },
         },
       ]);
@@ -112,7 +111,6 @@ describe("RiX Parser", () => {
               left: { type: "UserIdentifier", name: "x" },
               right: { type: "UserIdentifier", name: "n" },
             },
-            type: "standard",
           },
         },
       ]);
@@ -156,7 +154,6 @@ describe("RiX Parser", () => {
               },
               right: { type: "Number", value: "1" },
             },
-            type: "standard",
           },
         },
       ]);
@@ -236,7 +233,6 @@ describe("RiX Parser", () => {
                 },
               },
             },
-            type: "standard",
           },
         },
       ]);

@@ -340,7 +340,6 @@ class Parser {
                 name: funcName,
                 parameters: parameters,
                 body: right,
-                type: "standard",
                 pos: left.pos,
                 original: left.original + operator.original
             });
