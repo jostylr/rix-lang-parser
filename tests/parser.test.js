@@ -1261,8 +1261,7 @@ describe("RiX Parser", () => {
         {
           type: "Statement",
           expression: {
-            type: "BinaryOperation",
-            operator: "|>",
+            type: "Pipe",
             left: { type: "UserIdentifier", name: "x" },
             right: { type: "UserIdentifier", name: "f" },
           },
@@ -1270,21 +1269,310 @@ describe("RiX Parser", () => {
       ]);
     });
 
-    test("chained pipes", () => {
+    test("pipe with tuple", () => {
+      const ast = parseCode("(3, 4) |> f;");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "Pipe",
+            left: {
+              type: "Tuple",
+              elements: [
+                { type: "Number", value: "3" },
+                { type: "Number", value: "4" }
+              ]
+            },
+            right: { type: "UserIdentifier", name: "f" },
+          },
+        },
+      ]);
+    });
+
+    test("chained pipes with left associativity", () => {
       const ast = parseCode("x |> f |> g;");
       expect(stripMetadata(ast)).toEqual([
         {
           type: "Statement",
           expression: {
-            type: "BinaryOperation",
-            operator: "|>",
+            type: "Pipe",
             left: {
-              type: "BinaryOperation",
-              operator: "|>",
+              type: "Pipe",
               left: { type: "UserIdentifier", name: "x" },
               right: { type: "UserIdentifier", name: "f" },
             },
             right: { type: "UserIdentifier", name: "g" },
+          },
+        },
+      ]);
+    });
+
+    test("explicit pipe with placeholders", () => {
+      const ast = parseCode("(3, 4) ||> f(_2, _1);");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "ExplicitPipe",
+            left: {
+              type: "Tuple",
+              elements: [
+                { type: "Number", value: "3" },
+                { type: "Number", value: "4" }
+              ]
+            },
+            right: {
+              type: "FunctionCall",
+              function: { type: "UserIdentifier", name: "f" },
+              arguments: {
+                positional: [
+                  { type: "PlaceHolder", place: 2 },
+                  { type: "PlaceHolder", place: 1 }
+                ],
+                keyword: {}
+              }
+            }
+          },
+        },
+      ]);
+    });
+
+    test("map operator", () => {
+      const ast = parseCode("[1, 2, 3] |>> f;");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "Map",
+            left: {
+              type: "Array",
+              elements: [
+                { type: "Number", value: "1" },
+                { type: "Number", value: "2" },
+                { type: "Number", value: "3" }
+              ]
+            },
+            right: { type: "UserIdentifier", name: "f" },
+          },
+        },
+      ]);
+    });
+
+    test("map with lambda function", () => {
+      const ast = parseCode("[1, 2, 3] |>> (x) -> x^2;");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "Map",
+            left: {
+              type: "Array",
+              elements: [
+                { type: "Number", value: "1" },
+                { type: "Number", value: "2" },
+                { type: "Number", value: "3" }
+              ]
+            },
+            right: {
+              type: "FunctionLambda",
+              parameters: {
+                positional: [{ name: "x", defaultValue: null }],
+                keyword: [],
+                conditionals: [],
+                metadata: {}
+              },
+              body: {
+                type: "BinaryOperation",
+                operator: "^",
+                left: { type: "UserIdentifier", name: "x" },
+                right: { type: "Number", value: "2" }
+              }
+            },
+          },
+        },
+      ]);
+    });
+
+    test("filter operator", () => {
+      const ast = parseCode("[1, 2, 3, 4] |>? (x) -> x > 2;");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "Filter",
+            left: {
+              type: "Array",
+              elements: [
+                { type: "Number", value: "1" },
+                { type: "Number", value: "2" },
+                { type: "Number", value: "3" },
+                { type: "Number", value: "4" }
+              ]
+            },
+            right: {
+              type: "FunctionLambda",
+              parameters: {
+                positional: [{ name: "x", defaultValue: null }],
+                keyword: [],
+                conditionals: [],
+                metadata: {}
+              },
+              body: {
+                type: "BinaryOperation",
+                operator: ">",
+                left: { type: "UserIdentifier", name: "x" },
+                right: { type: "Number", value: "2" }
+              }
+            },
+          },
+        },
+      ]);
+    });
+
+    test("reduce operator", () => {
+      const ast = parseCode("[1, 2, 3, 4] |>: (a, b) -> a + b;");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "Reduce",
+            left: {
+              type: "Array",
+              elements: [
+                { type: "Number", value: "1" },
+                { type: "Number", value: "2" },
+                { type: "Number", value: "3" },
+                { type: "Number", value: "4" }
+              ]
+            },
+            right: {
+              type: "FunctionLambda",
+              parameters: {
+                positional: [
+                  { name: "a", defaultValue: null },
+                  { name: "b", defaultValue: null }
+                ],
+                keyword: [],
+                conditionals: [],
+                metadata: {}
+              },
+              body: {
+                type: "BinaryOperation",
+                operator: "+",
+                left: { type: "UserIdentifier", name: "a" },
+                right: { type: "UserIdentifier", name: "b" }
+              }
+            },
+          },
+        },
+      ]);
+    });
+
+    test("complex explicit pipe with multiple placeholders", () => {
+      const ast = parseCode("(1, 2, 3) ||> g(_3, _2, _1);");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "ExplicitPipe",
+            left: {
+              type: "Tuple",
+              elements: [
+                { type: "Number", value: "1" },
+                { type: "Number", value: "2" },
+                { type: "Number", value: "3" }
+              ]
+            },
+            right: {
+              type: "FunctionCall",
+              function: { type: "UserIdentifier", name: "g" },
+              arguments: {
+                positional: [
+                  { type: "PlaceHolder", place: 3 },
+                  { type: "PlaceHolder", place: 2 },
+                  { type: "PlaceHolder", place: 1 }
+                ],
+                keyword: {}
+              }
+            }
+          },
+        },
+      ]);
+    });
+
+    test("mixed pipe operations", () => {
+      const ast = parseCode("[1, 2, 3] |>> (x) -> x * 2 |>? (y) -> y > 3;");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "Filter",
+            left: {
+              type: "Map",
+              left: {
+                type: "Array",
+                elements: [
+                  { type: "Number", value: "1" },
+                  { type: "Number", value: "2" },
+                  { type: "Number", value: "3" }
+                ]
+              },
+              right: {
+                type: "FunctionLambda",
+                parameters: {
+                  positional: [{ name: "x", defaultValue: null }],
+                  keyword: [],
+                  conditionals: [],
+                  metadata: {}
+                },
+                body: {
+                  type: "BinaryOperation",
+                  operator: "*",
+                  left: { type: "UserIdentifier", name: "x" },
+                  right: { type: "Number", value: "2" }
+                }
+              }
+            },
+            right: {
+              type: "FunctionLambda",
+              parameters: {
+                positional: [{ name: "y", defaultValue: null }],
+                keyword: [],
+                conditionals: [],
+                metadata: {}
+              },
+              body: {
+                type: "BinaryOperation",
+                operator: ">",
+                left: { type: "UserIdentifier", name: "y" },
+                right: { type: "Number", value: "3" }
+              }
+            },
+          },
+        },
+      ]);
+    });
+
+    test("pipe with system function", () => {
+      const ast = parseCode("[1, 2, 3] |> SUM;");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "Pipe",
+            left: {
+              type: "Array",
+              elements: [
+                { type: "Number", value: "1" },
+                { type: "Number", value: "2" },
+                { type: "Number", value: "3" }
+              ]
+            },
+            right: { 
+              type: "SystemIdentifier", 
+              name: "SUM",
+              systemInfo: { type: "identifier" }
+            },
           },
         },
       ]);

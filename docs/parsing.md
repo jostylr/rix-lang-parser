@@ -1342,6 +1342,255 @@ This enables precise error reporting and source mapping for debugging and toolin
 - **Extensible**: Adding operators doesn't affect parsing performance of existing code
 - **Position preservation**: Full source position tracking with minimal overhead
 
+## Piping and Sequence Operators
+
+The RiX parser supports a comprehensive family of piping and sequence operators for functional data processing and transformation. These operators enable elegant composition of operations and data flow patterns.
+
+### Overview
+
+Piping operators allow data to flow from left to right through a sequence of transformations. All pipe operators are **left-associative**, meaning `a |> f |> g` is parsed as `(a |> f) |> g`, allowing natural left-to-right data flow through the pipeline.
+
+### Operator Types
+
+| Operator | AST Node | Precedence | Associativity | Description |
+|----------|----------|------------|---------------|-------------|
+| `\|>` | `Pipe` | 20 | left | Simple pipe - auto-feeds left as arguments to right function |
+| `\|\|>` | `ExplicitPipe` | 20 | left | Explicit pipe with placeholders for argument rearrangement |
+| `\|>>` | `Map` | 20 | left | Map function over each element of iterable |
+| `\|>?` | `Filter` | 20 | left | Filter elements where predicate returns true |
+| `\|>:` | `Reduce` | 20 | left | Reduce iterable to single value using binary function |
+
+### Simple Pipe (`|>`)
+
+The simple pipe operator feeds the left operand as arguments to the right function. Tuples are automatically unpacked as multiple arguments.
+
+#### Syntax
+```
+value |> function
+tuple |> function
+```
+
+#### Examples
+```rix
+3 |> f                    // f(3)
+(3, 4) |> f              // f(3, 4) - tuple unpacked
+[1, 2, 3] |> sum         // sum([1, 2, 3])
+x |> sqrt |> abs         // abs(sqrt(x)) - left associative
+```
+
+#### AST Structure
+```javascript
+{
+  type: "Pipe",
+  left: { /* left operand */ },
+  right: { /* right function */ }
+}
+```
+
+### Explicit Pipe (`||>`)
+
+The explicit pipe operator allows precise control over argument positioning using placeholders (`_1`, `_2`, etc.). This enables argument reordering, duplication, and selective usage.
+
+#### Syntax
+```
+tuple ||> function(_N, _M, ...)
+```
+
+#### Placeholder Rules
+- `_1`, `_2`, `_3`, ... refer to first, second, third, etc. tuple elements
+- `__1`, `___1` etc. are also valid placeholder formats
+- Placeholders can be duplicated: `_1, _1, _2`
+- Placeholders can be skipped: `_3, _1` (skips `_2`)
+- Placeholders can be reordered: `_2, _1` (swaps arguments)
+
+#### Examples
+```rix
+(3, 4) ||> f(_2, _1)           // f(4, 3) - swap arguments
+(1, 2, 3) ||> g(_3, _2, _1)    // g(3, 2, 1) - reverse
+(x, y) ||> func(_1, _1, _2)    // func(x, x, y) - duplicate
+(a, b, c, d) ||> h(_4, _1, _3) // h(d, a, c) - selective
+```
+
+#### AST Structure
+```javascript
+{
+  type: "ExplicitPipe",
+  left: { /* tuple operand */ },
+  right: { /* function with placeholders */ },
+  placeholders: ["_2", "_1"] // extracted placeholder names
+}
+```
+
+### Map Operator (`|>>`)
+
+The map operator applies a function to each element of an iterable, producing a new iterable with transformed elements.
+
+#### Syntax
+```
+iterable |>> function
+iterable |>> lambda_expression
+```
+
+#### Examples
+```rix
+[1, 2, 3] |>> f                    // [f(1), f(2), f(3)]
+[1, 2, 3] |>> (x) -> x^2          // [1, 4, 9]
+words |>> (w) -> w.toUpperCase()   // uppercase each word
+matrix |>> (row) -> row |> sum     // sum each row
+```
+
+#### AST Structure
+```javascript
+{
+  type: "Map",
+  left: { /* iterable operand */ },
+  right: { /* function or lambda */ }
+}
+```
+
+### Filter Operator (`|>?`)
+
+The filter operator keeps only elements where the predicate function returns true.
+
+#### Syntax
+```
+iterable |>? predicate_function
+iterable |>? lambda_expression
+```
+
+#### Examples
+```rix
+[1, 2, 3, 4] |>? (x) -> x > 2     // [3, 4]
+[1, 2, 3, 4] |>? (x) -> x % 2 == 0 // [2, 4] - even numbers
+words |>? (w) -> w.length > 3      // words longer than 3 chars
+data |>? isValid                   // filter using named predicate
+```
+
+#### AST Structure
+```javascript
+{
+  type: "Filter",
+  left: { /* iterable operand */ },
+  right: { /* predicate function */ }
+}
+```
+
+### Reduce Operator (`|>:`)
+
+The reduce operator accumulates elements of an iterable into a single value using a binary function.
+
+#### Syntax
+```
+iterable |>: binary_function
+iterable |>: lambda_expression
+```
+
+#### Examples
+```rix
+[1, 2, 3, 4] |>: (a, b) -> a + b  // 10 - sum
+[1, 2, 3, 4] |>: (acc, x) -> acc * x // 24 - product
+[5, 2, 8, 1] |>: (max, x) -> x > max ? x : max // 8 - maximum
+words |>: (acc, w) -> acc + " " + w // concatenate with spaces
+```
+
+#### AST Structure
+```javascript
+{
+  type: "Reduce",
+  left: { /* iterable operand */ },
+  right: { /* binary function */ }
+}
+```
+
+### Operator Composition
+
+Pipe operators can be chained together to create complex data processing pipelines:
+
+#### Examples
+```rix
+// Map then filter
+[1, 2, 3, 4, 5] |>> (x) -> x^2 |>? (y) -> y > 10
+// Result: [16, 25]
+
+// Filter then reduce
+numbers |>? (x) -> x > 0 |>: (a, b) -> a + b
+// Sum positive numbers
+
+// Complex pipeline
+data |>> normalize |>? (x) -> x > threshold |>: average
+// Normalize, filter, then compute average
+
+// Explicit pipe in pipeline
+(matrix, vector) ||> multiply(_1, _2) |> validate
+// Matrix-vector multiplication with validation
+```
+
+### Left Associativity
+
+All pipe operators are left-associative, which means:
+
+```rix
+a |> f |> g |> h
+// Parsed as: (((a |> f) |> g) |> h)
+// Evaluated as: h(g(f(a)))
+
+[1,2,3] |>> double |>? positive |>: sum
+// Parsed as: (([1,2,3] |>> double) |>? positive) |>: sum
+```
+
+This associativity enables natural left-to-right data flow through the pipeline, where each operation processes the result of the previous operation.
+
+### Precedence Rules
+
+Pipe operators have precedence level 20, which means they:
+- Bind looser than arithmetic and function calls
+- Bind tighter than assignment operators
+- Allow natural expression of data flow patterns
+
+```rix
+x + y |> f        // (x + y) |> f
+x |> f + 1        // (x |> f) + 1
+result := x |> f  // result := (x |> f)
+```
+
+### Integration Examples
+
+#### With Function Definitions
+```rix
+processData := (input) -> input |>> clean |>? validate |>: combine;
+```
+
+#### With Assignment
+```rix
+result := rawData |>> normalize |>? (x) -> x > 0.5 |>: average;
+```
+
+#### With System Functions
+```rix
+numbers |> SUM;
+matrix |>> (row) -> row |> MAX;
+```
+
+#### Mathematical Processing
+```rix
+measurements |>> (x) -> x - MEAN(measurements) |>> (x) -> x^2 |>: sum;
+// Compute sum of squared deviations
+```
+
+### Error Handling
+
+The parser validates:
+- Placeholder syntax in explicit pipes (`_1`, `_2`, etc.)
+- Proper function syntax on the right side of operators
+- Correct AST node generation for each operator type
+
+Invalid examples that will produce parse errors:
+```rix
+x ||> f(_0, _1)     // Invalid: placeholders start from _1
+x |>                // Invalid: missing right operand
+|> f                // Invalid: missing left operand
+```
+
 ## Function Definitions
 
 The RiX parser supports comprehensive function definition syntax with multiple paradigms.

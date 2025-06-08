@@ -8,6 +8,7 @@ const PRECEDENCE = {
     STATEMENT: 0,
     ASSIGNMENT: 10,      // :=, :=:, :>:, etc.
     PIPE: 20,           // |>, ||>, |>>, etc.
+    ARROW: 25,          // ->, =>, :-> for function definitions
     LOGICAL_OR: 30,     // OR (if system identifier)
     LOGICAL_AND: 40,    // AND (if system identifier)  
     CONDITION: 45,      // ? operator for conditions
@@ -83,7 +84,7 @@ const SYMBOL_TABLE = {
     '**': { precedence: PRECEDENCE.EXPONENTIATION, associativity: 'right', type: 'infix' },
     
     // Function arrow (right associative)
-    '->': { precedence: PRECEDENCE.ASSIGNMENT, associativity: 'right', type: 'infix' },
+    '->': { precedence: PRECEDENCE.ARROW, associativity: 'right', type: 'infix' },
     '=>': { precedence: PRECEDENCE.ASSIGNMENT, associativity: 'right', type: 'infix' },
     ':->': { precedence: PRECEDENCE.ASSIGNMENT, associativity: 'right', type: 'infix' },
     
@@ -246,6 +247,13 @@ class Parser {
                     });
                 }
 
+            case 'PlaceHolder':
+                this.advance();
+                return this.createNode('PlaceHolder', {
+                    place: token.place,
+                    original: token.original
+                });
+
             case 'Symbol':
                 if (token.value === '(') {
                     return this.parseGrouping();
@@ -332,7 +340,7 @@ class Parser {
                 name: funcName,
                 parameters: parameters,
                 body: right,
-                type: 'standard',
+                type: "standard",
                 pos: left.pos,
                 original: left.original + operator.original
             });
@@ -370,7 +378,15 @@ class Parser {
             
             // Parse each pattern as a function definition
             for (const pattern of rawPatterns) {
-                if (pattern.type === 'BinaryOperation' && pattern.operator === '->') {
+                if (pattern.type === 'FunctionLambda') {
+                    // Handle FunctionLambda nodes (new parsing with higher -> precedence)
+                    const patternFunc = {
+                        parameters: pattern.parameters,
+                        body: pattern.body
+                    };
+                    patterns.push(patternFunc);
+                } else if (pattern.type === 'BinaryOperation' && pattern.operator === '->') {
+                    // Handle legacy BinaryOperation nodes (fallback)
                     const patternFunc = {
                         parameters: { positional: [], keyword: [], conditionals: [], metadata: {} },
                         body: pattern.right
@@ -418,6 +434,42 @@ class Parser {
                     pos: left.pos,
                     original: left.original + operator.original
                 });
+            } else if (left.type === 'Grouping' && left.expression) {
+                // Handle simple parameter cases like (x) -> expr or (x ? condition) -> expr
+                let parameters = { positional: [], keyword: [], conditionals: [], metadata: {} };
+                
+                if (left.expression.type === 'UserIdentifier') {
+                    // Single parameter: (x) -> expr
+                    parameters.positional.push({ name: left.expression.name, defaultValue: null });
+                } else if (left.expression.type === 'BinaryOperation' && left.expression.operator === '?') {
+                    // Conditional parameter: (x ? condition) -> expr
+                    const paramName = left.expression.left.name || left.expression.left.value;
+                    parameters.positional.push({ name: paramName, defaultValue: null });
+                    parameters.conditionals.push(left.expression.right);
+                }
+                
+                return this.createNode('FunctionLambda', {
+                    parameters: parameters,
+                    body: right,
+                    pos: left.pos,
+                    original: left.original + operator.original
+                });
+            } else if (left.type === 'Tuple') {
+                // Handle multiple parameters parsed directly as Tuple: (a, b) -> expr
+                let parameters = { positional: [], keyword: [], conditionals: [], metadata: {} };
+                
+                for (const element of left.elements) {
+                    if (element.type === 'UserIdentifier') {
+                        parameters.positional.push({ name: element.name, defaultValue: null });
+                    }
+                }
+                
+                return this.createNode('FunctionLambda', {
+                    parameters: parameters,
+                    body: right,
+                    pos: left.pos,
+                    original: left.original + operator.original
+                });
             } else {
                 // Regular binary operation
                 return this.createNode('BinaryOperation', {
@@ -428,6 +480,52 @@ class Parser {
                     original: left.original + operator.original
                 });
             }
+        } else if (operator.value === '|>') {
+            // Simple pipe operator
+            right = this.parseExpression(rightPrec);
+            return this.createNode('Pipe', {
+                left: left,
+                right: right,
+                pos: left.pos,
+                original: left.original + operator.original
+            });
+        } else if (operator.value === '||>') {
+            // Explicit pipe operator with placeholders
+            right = this.parseExpression(rightPrec);
+            
+            return this.createNode('ExplicitPipe', {
+                left: left,
+                right: right,
+                pos: left.pos,
+                original: left.original + operator.original
+            });
+        } else if (operator.value === '|>>') {
+            // Map operator
+            right = this.parseExpression(rightPrec);
+            return this.createNode('Map', {
+                left: left,
+                right: right,
+                pos: left.pos,
+                original: left.original + operator.original
+            });
+        } else if (operator.value === '|>?') {
+            // Filter operator
+            right = this.parseExpression(rightPrec);
+            return this.createNode('Filter', {
+                left: left,
+                right: right,
+                pos: left.pos,
+                original: left.original + operator.original
+            });
+        } else if (operator.value === '|>:') {
+            // Reduce operator
+            right = this.parseExpression(rightPrec);
+            return this.createNode('Reduce', {
+                left: left,
+                right: right,
+                pos: left.pos,
+                original: left.original + operator.original
+            });
         } else {
             // Binary operator
             right = this.parseExpression(rightPrec);
@@ -1105,6 +1203,9 @@ class Parser {
 
         return result;
     }
+
+
+
 
     parseStatement() {
         if (this.current.type === 'End') {

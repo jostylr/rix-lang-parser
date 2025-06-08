@@ -393,6 +393,22 @@ function tryMatchNumber(input, position) {
 function tryMatchIdentifier(input, position) {
     const remaining = input.slice(position);
     
+    // Check for placeholder pattern (_1, _2, __1, etc.)
+    if (remaining[0] === '_') {
+        const placeholderMatch = remaining.match(/^_+(\d+)/);
+        if (placeholderMatch) {
+            const original = placeholderMatch[0];
+            const place = parseInt(placeholderMatch[1], 10);
+            return {
+                type: 'PlaceHolder',
+                original: original,
+                place: place,
+                pos: [position, position, position + original.length]
+            };
+        }
+        return null;
+    }
+    
     // Check if first character is a valid identifier start
     if (!identifierStart.test(remaining[0])) {
         return null;
