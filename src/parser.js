@@ -19,6 +19,7 @@ const PRECEDENCE = {
     MULTIPLICATION: 90, // *, /, //, %, /^, /~, /%
     EXPONENTIATION: 100, // ^, **
     UNARY: 110,         // unary -, +, NOT
+    CALCULUS: 115,      // derivatives ('), integrals (')
     POSTFIX: 120,       // function calls, array access
     PROPERTY: 130       // .
 };
@@ -93,6 +94,9 @@ const SYMBOL_TABLE = {
     
     // Property access
     '.': { precedence: PRECEDENCE.PROPERTY, associativity: 'left', type: 'infix' },
+    
+    // Calculus operators
+    "'": { precedence: PRECEDENCE.CALCULUS, associativity: 'left', type: 'calculus' },
     
     // Grouping
     '(': { precedence: 0, type: 'grouping' },
@@ -195,6 +199,13 @@ class Parser {
                 continue;
             }
 
+            // Special case for postfix derivatives (single quotes after function/identifier)
+            if (this.current.value === "'" && (left.type === 'UserIdentifier' || left.type === 'SystemIdentifier' || 
+                left.type === 'FunctionCall' || left.type === 'PropertyAccess' || left.type === 'Derivative' || left.type === 'Integral')) {
+                left = this.parseDerivative(left);
+                continue;
+            }
+
             const symbolInfo = this.getSymbolInfo(this.current);
             
             if (symbolInfo.precedence < minPrec) {
@@ -269,6 +280,9 @@ class Parser {
                     return this.parseCodeBlock();
                 } else if (token.value === '+' || token.value === '-') {
                     return this.parseUnaryOperator();
+                } else if (token.value === "'") {
+                    // Leading quote for integral
+                    return this.parseIntegral();
                 } else if (token.value === '_') {
                     // Underscore is always a null symbol
                     this.advance();
@@ -968,6 +982,222 @@ class Parser {
             pos: operator.pos,
             original: operator.original
         });
+    }
+
+    // Parse derivatives (postfix quotes)
+    parseDerivative(left) {
+        const quotes = [];
+        let originalText = '';
+        
+        // Collect consecutive quotes
+        while (this.current.value === "'") {
+            quotes.push(this.current);
+            originalText += this.current.original;
+            this.advance();
+        }
+        
+        // Check for bracket notation for variables: f'[x,y]
+        let variables = null;
+        if (this.current.value === '[') {
+            this.advance(); // consume '['
+            variables = this.parseVariableList();
+            if (this.current.value !== ']') {
+                this.error('Expected closing bracket after variable list');
+            }
+            originalText += this.current.original;
+            this.advance(); // consume ']'
+        }
+        
+        // Check for evaluation/operation parentheses
+        let evaluation = null;
+        let operations = null;
+        
+        if (this.current.value === '(') {
+            const parenResult = this.parseCalculusParentheses();
+            if (parenResult.isEvaluation) {
+                evaluation = parenResult.content;
+            } else {
+                operations = parenResult.content;
+            }
+            originalText += parenResult.original;
+        }
+        
+        return this.createNode('Derivative', {
+            function: left,
+            order: quotes.length,
+            variables: variables,
+            evaluation: evaluation,
+            operations: operations,
+            pos: left.pos,
+            original: left.original + originalText
+        });
+    }
+
+    // Parse integrals (leading quotes)
+    parseIntegral() {
+        const quotes = [];
+        let originalText = '';
+        
+        // Collect consecutive leading quotes
+        while (this.current.value === "'") {
+            quotes.push(this.current);
+            originalText += this.current.original;
+            this.advance();
+        }
+        
+        // Parse the base function/identifier only
+        let func = null;
+        if (this.current.type === 'Identifier') {
+            if (this.current.kind === 'System') {
+                const systemInfo = this.systemLookup(this.current.value);
+                func = this.createNode('SystemIdentifier', {
+                    name: this.current.value,
+                    systemInfo: systemInfo,
+                    original: this.current.original
+                });
+            } else {
+                func = this.createNode('UserIdentifier', {
+                    name: this.current.value,
+                    original: this.current.original
+                });
+            }
+            this.advance();
+        } else {
+            this.error('Expected function name after integral operator');
+        }
+        
+        // Check for bracket notation for variables: 'f[x,y]
+        let variables = null;
+        if (this.current.value === '[') {
+            this.advance(); // consume '['
+            variables = this.parseVariableList();
+            if (this.current.value !== ']') {
+                this.error('Expected closing bracket after variable list');
+            }
+            originalText += this.current.original;
+            this.advance(); // consume ']'
+        }
+        
+        // Check for evaluation/operation parentheses
+        let evaluation = null;
+        let operations = null;
+        
+        if (this.current.value === '(') {
+            const parenResult = this.parseCalculusParentheses();
+            if (parenResult.isEvaluation) {
+                evaluation = parenResult.content;
+            } else {
+                operations = parenResult.content;
+            }
+            originalText += parenResult.original;
+        }
+        
+        return this.createNode('Integral', {
+            function: func,
+            order: quotes.length,
+            variables: variables,
+            evaluation: evaluation,
+            operations: operations,
+            metadata: { integrationConstant: 'c', defaultValue: 0 },
+            pos: quotes[0].pos,
+            original: originalText + func.original
+        });
+    }
+
+    // Parse variable lists in brackets: [x, y, z]
+    parseVariableList() {
+        const variables = [];
+        
+        if (this.current.value !== ']') {
+            do {
+                if (this.current.type === 'Identifier') {
+                    variables.push({
+                        name: this.current.value,
+                        original: this.current.original
+                    });
+                    this.advance();
+                } else {
+                    this.error('Expected variable name in variable list');
+                }
+                
+                if (this.current.value === ',') {
+                    this.advance();
+                } else if (this.current.value === ']') {
+                    break;
+                } else {
+                    this.error('Expected comma or closing bracket in variable list');
+                }
+            } while (true);
+        }
+        
+        return variables;
+    }
+
+    // Parse parentheses in calculus context to distinguish evaluation vs operations
+    parseCalculusParentheses() {
+        const startToken = this.current;
+        this.advance(); // consume '('
+        
+        let isEvaluation = true;
+        const content = [];
+        let originalText = startToken.original;
+        
+        while (this.current.value !== ')' && this.current.type !== 'End') {
+            const expr = this.parseExpression(0);
+            content.push(expr);
+            
+            // Check if this contains operations (quotes) indicating it's an operation sequence
+            if (this.containsCalculusOperations(expr)) {
+                isEvaluation = false;
+            }
+            
+            if (this.current.value === ',') {
+                originalText += this.current.original;
+                this.advance();
+            } else {
+                break;
+            }
+        }
+        
+        if (this.current.value !== ')') {
+            this.error('Expected closing parenthesis');
+        }
+        
+        originalText += this.current.original;
+        this.advance(); // consume ')'
+        
+        return {
+            isEvaluation: isEvaluation,
+            content: content,
+            original: originalText
+        };
+    }
+
+    // Helper to check if expression contains calculus operations
+    containsCalculusOperations(expr) {
+        if (!expr || typeof expr !== 'object') return false;
+        
+        // Check for calculus node types directly
+        if (expr.type === 'Derivative' || expr.type === 'Integral') {
+            return true;
+        }
+        
+        // Check for quote symbols in identifiers (like x' or 'x)
+        if (expr.type === 'UserIdentifier' && expr.name) {
+            return expr.name.includes("'");
+        }
+        
+        // Recursively check child nodes
+        if (expr.left && this.containsCalculusOperations(expr.left)) return true;
+        if (expr.right && this.containsCalculusOperations(expr.right)) return true;
+        if (expr.function && this.containsCalculusOperations(expr.function)) return true;
+        if (expr.elements) {
+            for (const element of expr.elements) {
+                if (this.containsCalculusOperations(element)) return true;
+            }
+        }
+        
+        return false;
     }
 
     parseFunctionArgs() {

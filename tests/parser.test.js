@@ -2501,4 +2501,196 @@ describe("RiX Parser", () => {
       ast.forEach(checkPositions);
     });
   });
+
+  describe('Symbolic Calculus', () => {
+    test('simple derivative function', () => {
+      const ast = parseCode("f'");
+      expect(stripMetadata(ast)).toEqual([{
+        type: 'Derivative',
+        function: { type: 'UserIdentifier', name: 'f' },
+        order: 1,
+        variables: null,
+        evaluation: null,
+        operations: null
+      }]);
+    });
+
+    test('derivative evaluated at point', () => {
+      const ast = parseCode("f'(x)");
+      expect(stripMetadata(ast)).toEqual([{
+        type: 'Derivative',
+        function: { type: 'UserIdentifier', name: 'f' },
+        order: 1,
+        variables: null,
+        evaluation: [{ type: 'UserIdentifier', name: 'x' }],
+        operations: null
+      }]);
+    });
+
+    test('second derivative', () => {
+      const ast = parseCode("f''");
+      expect(stripMetadata(ast)).toEqual([{
+        type: 'Derivative',
+        function: { type: 'UserIdentifier', name: 'f' },
+        order: 2,
+        variables: null,
+        evaluation: null,
+        operations: null
+      }]);
+    });
+
+    test('derivative with variable specification', () => {
+      const ast = parseCode("f'[x,y]");
+      expect(stripMetadata(ast)).toEqual([{
+        type: 'Derivative',
+        function: { type: 'UserIdentifier', name: 'f' },
+        order: 1,
+        variables: [
+          { name: 'x' },
+          { name: 'y' }
+        ],
+        evaluation: null,
+        operations: null
+      }]);
+    });
+
+    test('simple indefinite integral', () => {
+      const ast = parseCode("'f");
+      expect(stripMetadata(ast)).toEqual([{
+        type: 'Integral',
+        function: { type: 'UserIdentifier', name: 'f' },
+        order: 1,
+        variables: null,
+        evaluation: null,
+        operations: null,
+        metadata: { integrationConstant: 'c', defaultValue: 0 }
+      }]);
+    });
+
+    test('integral evaluated at point', () => {
+      const ast = parseCode("'f(x)");
+      expect(stripMetadata(ast)).toEqual([{
+        type: 'Integral',
+        function: { type: 'UserIdentifier', name: 'f' },
+        order: 1,
+        variables: null,
+        evaluation: [{ type: 'UserIdentifier', name: 'x' }],
+        operations: null,
+        metadata: { integrationConstant: 'c', defaultValue: 0 }
+      }]);
+    });
+
+    test('double integral', () => {
+      const ast = parseCode("''f");
+      expect(stripMetadata(ast)).toEqual([{
+        type: 'Integral',
+        function: { type: 'UserIdentifier', name: 'f' },
+        order: 2,
+        variables: null,
+        evaluation: null,
+        operations: null,
+        metadata: { integrationConstant: 'c', defaultValue: 0 }
+      }]);
+    });
+
+    test('integral with variable specification', () => {
+      const ast = parseCode("'f[x,y]");
+      expect(stripMetadata(ast)).toEqual([{
+        type: 'Integral',
+        function: { type: 'UserIdentifier', name: 'f' },
+        order: 1,
+        variables: [
+          { name: 'x' },
+          { name: 'y' }
+        ],
+        evaluation: null,
+        operations: null,
+        metadata: { integrationConstant: 'c', defaultValue: 0 }
+      }]);
+    });
+
+    test('mixed calculus operations - integrate then differentiate', () => {
+      const ast = parseCode("'f'[x,y]('x,y')");
+      expect(stripMetadata(ast)).toEqual([{
+        type: 'Derivative',
+        function: {
+          type: 'Integral',
+          function: { type: 'UserIdentifier', name: 'f' },
+          order: 1,
+          variables: null,
+          evaluation: null,
+          operations: null,
+          metadata: { integrationConstant: 'c', defaultValue: 0 }
+        },
+        order: 1,
+        variables: [
+          { name: 'x' },
+          { name: 'y' }
+        ],
+        evaluation: null,
+        operations: [
+          {
+            type: 'Integral',
+            function: { type: 'UserIdentifier', name: 'x' },
+            order: 1,
+            variables: null,
+            evaluation: null,
+            operations: null,
+            metadata: { integrationConstant: 'c', defaultValue: 0 }
+          },
+          {
+            type: 'Derivative',
+            function: { type: 'UserIdentifier', name: 'y' },
+            order: 1,
+            variables: null,
+            evaluation: null,
+            operations: null
+          }
+        ]
+      }]);
+    });
+
+    test('function call with derivative', () => {
+      const ast = parseCode("SIN(x)'");
+      expect(stripMetadata(ast)).toEqual([{
+        type: 'Derivative',
+        function: {
+          type: 'FunctionCall',
+          function: { 
+            type: 'SystemIdentifier', 
+            name: 'SIN',
+            systemInfo: { type: 'function', arity: 1 }
+          },
+          arguments: { 
+            positional: [{ type: 'UserIdentifier', name: 'x' }],
+            keyword: {}
+          }
+        },
+        order: 1,
+        variables: null,
+        evaluation: null,
+        operations: null
+      }]);
+    });
+
+    test('derivative operation vs evaluation distinction', () => {
+      // f'(x') should be operation, not evaluation
+      const ast = parseCode("f'(x')");
+      expect(stripMetadata(ast)).toEqual([{
+        type: 'Derivative',
+        function: { type: 'UserIdentifier', name: 'f' },
+        order: 1,
+        variables: null,
+        evaluation: null,
+        operations: [{
+          type: 'Derivative',
+          function: { type: 'UserIdentifier', name: 'x' },
+          order: 1,
+          variables: null,
+          evaluation: null,
+          operations: null
+        }]
+      }]);
+    });
+  });
 });

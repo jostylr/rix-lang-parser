@@ -1865,6 +1865,149 @@ piecewise :=> [
 matmul(A, B; validate := true ? A.cols = B.rows) :-> A * B
 ```
 
+## Symbolic Calculus
+
+### Overview
+
+RiX provides comprehensive support for symbolic calculus operations including derivatives and indefinite integrals. The notation follows mathematical conventions while supporting advanced features like variable specification, mixed sequences, and operation vs evaluation distinction.
+
+### Derivative Notation (Postfix Quotes)
+
+#### Basic Derivatives
+- `f'` - First derivative of function f
+- `f''` - Second derivative of function f  
+- `f'''` - Third derivative of function f
+
+#### Variable Specification
+- `f'[x]` - Partial derivative with respect to x
+- `f'[x, y]` - Specify variables for partial derivatives
+- `f''[x, y, z]` - Higher-order partial derivatives
+
+#### Evaluation vs Operations
+- `f'(x)` - Derivative evaluated at point x
+- `f'(x')` - Derivative operation (x' means derivative of x)
+- `f'(a, b)` - Derivative evaluated at multiple points
+
+### Integral Notation (Leading Quotes)
+
+#### Basic Integrals
+- `'f` - Indefinite integral of function f
+- `''f` - Double integral of function f
+- `'''f` - Triple integral of function f
+
+#### Variable Specification
+- `'f[x]` - Integral with respect to x
+- `''f[x, y]` - Double integral over x and y
+- `'''f[x, y, z]` - Triple integral over x, y, and z
+
+#### Evaluation and Integration Constants
+- `'f(x)` - Integral evaluated at point x
+- Integration constants are automatically included in metadata as `c` with default value 0
+
+### Mixed Calculus Operations
+
+#### Sequential Operations
+- `'f'` - Integrate f, then differentiate the result
+- `f''` - Second derivative of f
+- `''f''` - Double integral followed by double derivative
+
+#### Complex Sequences with Variables
+- `'f'[x, y]` - Integrate f, then take partial derivative with variables [x, y]
+- `''f''[x, y, z]('x, y', 'z, x')` - Complex sequence with operation specification
+
+### Function Calculus
+
+#### System Functions
+- `SIN(x)'` - Derivative of sine function
+- `'EXP(x^2)` - Integral of exponential function
+- `LOG(x^2 + 1)'[x]` - Derivative with respect to x
+
+#### Composed Functions
+- `SIN(COS(x))'` - Derivative of composed trigonometric functions
+- `'POW(x, n)[x]` - Integral of power function with respect to x
+
+### Path Derivatives
+
+For parametric and path derivatives:
+- `f'(r'(t))` - Derivative along path r(t)
+- `g'(x'(t), y'(t))` - Multiple path derivatives
+
+### AST Structure
+
+#### Derivative Node
+```
+{
+  type: 'Derivative',
+  function: <function_node>,
+  order: <number>,
+  variables: [<variable_list>] | null,
+  evaluation: [<evaluation_points>] | null,
+  operations: [<operation_sequence>] | null
+}
+```
+
+#### Integral Node
+```
+{
+  type: 'Integral', 
+  function: <function_node>,
+  order: <number>,
+  variables: [<variable_list>] | null,
+  evaluation: [<evaluation_points>] | null,
+  operations: [<operation_sequence>] | null,
+  metadata: {
+    integrationConstant: 'c',
+    defaultValue: 0
+  }
+}
+```
+
+### Examples
+
+#### Simple Derivatives
+```rix
+f'          // First derivative function
+f''(x)      // Second derivative evaluated at x
+f'[x, y]    // Partial derivative with variables
+```
+
+#### Simple Integrals  
+```rix
+'f          // Indefinite integral
+''f[x, y]   // Double integral over x, y
+'f(a)       // Integral evaluated at point a
+```
+
+#### Mixed Operations
+```rix
+'f'                    // Integrate then differentiate
+''f''[x, y]           // Double integral then double derivative
+'f'[x, y]('x, y')     // Complex sequence with operations
+```
+
+#### Function Calculus
+```rix
+SIN(x)'               // Derivative of sine
+'EXP(x^2)[x]          // Integral of exponential
+LOG(SIN(x))'          // Derivative of composition
+```
+
+### Parsing Rules
+
+1. **Precedence**: Calculus operations have high precedence (115), between unary (110) and postfix (120)
+
+2. **Associativity**: Derivatives are left-associative postfix operations
+
+3. **Variable Specification**: Brackets `[x, y]` immediately after derivatives/integrals specify variables
+
+4. **Evaluation vs Operations**: Parentheses content determines behavior:
+   - Simple identifiers → evaluation points
+   - Calculus operations (containing quotes) → operation sequences
+
+5. **Integration Constants**: Automatically added to integral metadata
+
+6. **Mixed Sequences**: Operations are parsed left-to-right maintaining mathematical order
+
 ## Integration Notes
 
 The parser is designed to integrate seamlessly with:
