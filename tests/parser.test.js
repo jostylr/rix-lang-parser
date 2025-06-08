@@ -2274,6 +2274,206 @@ describe("RiX Parser", () => {
     });
   });
 
+  describe("Embedded Languages", () => {
+    test("polynomial with context", () => {
+      const ast = parseCode("`P(x):x^2 + 3x + 5`;");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "EmbeddedLanguage",
+            language: "P",
+            context: "x",
+            body: "x^2 + 3x + 5"
+          }
+        }
+      ]);
+    });
+
+    test("fraction without context", () => {
+      const ast = parseCode("`F:6/8`;");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "EmbeddedLanguage",
+            language: "F",
+            context: null,
+            body: "6/8"
+          }
+        }
+      ]);
+    });
+
+    test("javascript with multiple parameters", () => {
+      const ast = parseCode("`JS(a, b): a[b] `;");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "EmbeddedLanguage",
+            language: "JS",
+            context: "a, b",
+            body: " a[b] "
+          }
+        }
+      ]);
+    });
+
+    test("nested backticks", () => {
+      const ast = parseCode("``RiX: `F:5/3` + `F:7/8` ``;");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "EmbeddedLanguage",
+            language: "RiX",
+            context: null,
+            body: " `F:5/3` + `F:7/8` "
+          }
+        }
+      ]);
+    });
+
+    test("no colon - RiX-String", () => {
+      const ast = parseCode("`NoColon`;");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "EmbeddedLanguage",
+            language: "RiX-String",
+            context: null,
+            body: "NoColon"
+          }
+        }
+      ]);
+    });
+
+    test("empty context parentheses", () => {
+      const ast = parseCode("`SQL():SELECT * FROM users`;");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "EmbeddedLanguage",
+            language: "SQL",
+            context: "",
+            body: "SELECT * FROM users"
+          }
+        }
+      ]);
+    });
+
+    test("complex context with spaces", () => {
+      const ast = parseCode("`Matrix(3, 4): [[1, 2], [3, 4]] `;");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "EmbeddedLanguage",
+            language: "Matrix",
+            context: "3, 4",
+            body: " [[1, 2], [3, 4]] "
+          }
+        }
+      ]);
+    });
+
+    test("triple backticks", () => {
+      const ast = parseCode("```Code: `hello` and ``world`` ```;");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "EmbeddedLanguage",
+            language: "Code",
+            context: null,
+            body: " `hello` and ``world`` "
+          }
+        }
+      ]);
+    });
+
+    test("starts with colon - RiX-String", () => {
+      const ast = parseCode("`:starts with colon`;");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "EmbeddedLanguage",
+            language: "RiX-String",
+            context: null,
+            body: "starts with colon"
+          }
+        }
+      ]);
+    });
+
+    test("context with colons", () => {
+      const ast = parseCode("`JS(a, b: string, c): a + b`;");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "EmbeddedLanguage",
+            language: "JS",
+            context: "a, b: string, c",
+            body: " a + b"
+          }
+        }
+      ]);
+    });
+
+    test("nested parentheses in context", () => {
+      const ast = parseCode("`Matrix(size(3, 4)): data`;");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "EmbeddedLanguage",
+            language: "Matrix",
+            context: "size(3, 4)",
+            body: " data"
+          }
+        }
+      ]);
+    });
+
+    test("malformed parentheses throws error", () => {
+      expect(() => {
+        parseCode("`Function(a, b)(extra): body`;");
+      }).toThrow("Invalid embedded language header format. Expected: LANGUAGE(CONTEXT):BODY");
+    });
+
+    test("unmatched opening parenthesis throws error", () => {
+      expect(() => {
+        parseCode("`Malformed(: broken`;");
+      }).toThrow("Unmatched opening parenthesis in embedded language header");
+    });
+
+    test("unmatched closing parenthesis throws error", () => {
+      expect(() => {
+        parseCode("`Missing): body`;");
+      }).toThrow("Unmatched closing parenthesis in embedded language header");
+    });
+
+    test("space before colon", () => {
+      const ast = parseCode("`P (x):x^2 + 3x + 5`;");
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: "Statement",
+          expression: {
+            type: "EmbeddedLanguage",
+            language: "P",
+            context: "x",
+            body: "x^2 + 3x + 5"
+          }
+        }
+      ]);
+    });
+  });
+
   describe("Position information", () => {
     test("all nodes have position information", () => {
       const ast = parseCode("x + y;");

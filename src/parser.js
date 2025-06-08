@@ -225,11 +225,15 @@ class Parser {
 
             case 'String':
                 this.advance();
-                return this.createNode('String', {
-                    value: token.value,
-                    kind: token.kind,
-                    original: token.original
-                });
+                if (token.kind === 'backtick') {
+                    return this.parseEmbeddedLanguage(token);
+                } else {
+                    return this.createNode('String', {
+                        value: token.value,
+                        kind: token.kind,
+                        original: token.original
+                    });
+                }
 
             case 'Identifier':
                 this.advance();
@@ -1171,7 +1175,119 @@ class Parser {
         return params;
     }
 
-    parseParameterFromArg(arg, isKeywordOnly) {
+    parseEmbeddedLanguage(token) {
+        const content = token.value;
+        
+        // If starts with colon or no colon found, treat as RiX-String
+        if (content.startsWith(':') || content.indexOf(':') === -1) {
+            const body = content.startsWith(':') ? content.slice(1) : content;
+            return this.createNode('EmbeddedLanguage', {
+                language: 'RiX-String',
+                context: null,
+                body: body,
+                original: token.original
+            });
+        }
+        
+        // First, try to find a proper language header with parentheses
+        const parenStart = content.indexOf('(');
+        let colonIndex = -1;
+        let header = '';
+        let body = '';
+        
+        if (parenStart !== -1) {
+            // Look for balanced parentheses and then find colon after them
+            let parenCount = 0;
+            let parenEnd = -1;
+            
+            for (let i = parenStart; i < content.length; i++) {
+                if (content[i] === '(') {
+                    parenCount++;
+                } else if (content[i] === ')') {
+                    parenCount--;
+                    if (parenCount === 0) {
+                        parenEnd = i;
+                        break;
+                    }
+                }
+            }
+            
+            // If we found balanced parentheses, look for colon after them
+            if (parenEnd !== -1) {
+                const afterParens = content.slice(parenEnd + 1);
+                const colonAfterParens = afterParens.indexOf(':');
+                if (colonAfterParens !== -1) {
+                    colonIndex = parenEnd + 1 + colonAfterParens;
+                }
+            }
+        }
+        
+        // If no parentheses or no colon after parentheses, find first colon
+        if (colonIndex === -1) {
+            colonIndex = content.indexOf(':');
+        }
+        
+        header = content.slice(0, colonIndex).trim();
+        body = content.slice(colonIndex + 1);
+        
+        // Parse the header to extract language and optional context
+        let language = header;
+        let context = null;
+        
+        // Check if header has parentheses for context
+        const headerParenStart = header.indexOf('(');
+        const headerParenEnd = header.lastIndexOf(')');
+        
+        // Check for unmatched closing parenthesis
+        if (headerParenEnd !== -1 && headerParenStart === -1) {
+            this.error('Unmatched closing parenthesis in embedded language header');
+        }
+        
+        if (headerParenStart !== -1) {
+            let parenCount = 0;
+            let parenEnd = -1;
+            
+            // Find the matching closing parenthesis
+            for (let i = headerParenStart; i < header.length; i++) {
+                if (header[i] === '(') {
+                    parenCount++;
+                } else if (header[i] === ')') {
+                    parenCount--;
+                    if (parenCount === 0) {
+                        parenEnd = i;
+                        break;
+                    }
+                }
+            }
+            
+            // Validate parentheses structure
+            if (parenEnd === -1) {
+                this.error('Unmatched opening parenthesis in embedded language header');
+            }
+            
+            if (parenEnd !== header.length - 1) {
+                this.error('Invalid embedded language header format. Expected: LANGUAGE(CONTEXT):BODY');
+            }
+            
+            // Check for multiple outer parenthetical groups
+            const afterCloseParen = header.slice(parenEnd + 1);
+            if (afterCloseParen.includes('(')) {
+                this.error('Multiple parenthetical groups not allowed in embedded language header');
+            }
+            
+            language = header.slice(0, headerParenStart).trim();
+            context = header.slice(headerParenStart + 1, parenEnd).trim();
+        }
+        
+        return this.createNode('EmbeddedLanguage', {
+            language: language || null,
+            context: context,
+            body: body,
+            original: token.original
+        });
+    }
+
+    parseParameterFromArg(arg, inKeywordSection) {
         const result = {
             param: {
                 name: null,
