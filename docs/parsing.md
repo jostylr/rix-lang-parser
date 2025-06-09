@@ -2018,7 +2018,7 @@ RiX provides comprehensive interval manipulation operations that extend the basi
 
 The fundamental interval operator `:` creates a range between two values:
 
-```math-oracle/examples/intervals.rix#L1-3
+```rix
 a:b    // Basic interval from a to b
 1:10   // Integer interval
 0.5:3.7 // Decimal interval
@@ -2029,17 +2029,17 @@ a:b    // Basic interval from a to b
 Stepping operations generate arithmetic sequences within intervals:
 
 #### Increment Stepping (`:+`)
-```math-oracle/examples/intervals.rix#L5-7
+```rix
 a:b :+ n    // Start at a, add n each time until > b
 1:10 :+ 2   // → 1, 3, 5, 7, 9
 0:PI :+ 0.5 // → 0, 0.5, 1.0, 1.5, ..., 3.0
 ```
 
-#### Decrement Stepping (`:-`)
-```math-oracle/examples/intervals.rix#L9-11
-a:b :- n    // Start at a, subtract n each time until < b
-10:1 :- 3   // → 10, 7, 4, 1
-360:0 :- 45 // → 360, 315, 270, ..., 45
+#### Decrement Stepping (`:+ -n`)
+```rix
+a:b :+ -n   // Start at a, subtract n each time until < b
+10:1 :+ -3  // → 10, 7, 4, 1
+360:0 :+ -45 // → 360, 315, 270, ..., 45
 ```
 
 ### Interval Division
@@ -2047,7 +2047,7 @@ a:b :- n    // Start at a, subtract n each time until < b
 Division operations split intervals into points or sub-intervals:
 
 #### Equally Spaced Points (`::`)
-```math-oracle/examples/intervals.rix#L13-16
+```rix
 a:b::n      // Divide into n equally spaced points (including endpoints)
 1:5::3      // → 1, 3, 5
 0:10::5     // → 0, 2.5, 5, 7.5, 10
@@ -2055,7 +2055,7 @@ a:b::n      // Divide into n equally spaced points (including endpoints)
 ```
 
 #### Sub-interval Partition (`:/:`)
-```math-oracle/examples/intervals.rix#L18-21
+```rix
 a:b:/:n     // Partition into n sub-intervals
 1:5:/:2     // → [1:3, 3:5]
 0:12:/:4    // → [0:3, 3:6, 6:9, 9:12]
@@ -2067,7 +2067,7 @@ a:b:/:1     // → [a:b] (identity)
 Mediant operations generate fractional approximations using the mediant of fractions:
 
 #### Mediant Tree (`:~`)
-```math-oracle/examples/intervals.rix#L23-27
+```rix
 a:b:~n      // Generate mediant tree to level n
 1:2:~1      // → [[1/1, 2/1], [3/2]]
 1:2:~2      // → [[1/1, 2/1], [3/2], [4/3, 5/3]]
@@ -2075,7 +2075,7 @@ a:b:~n      // Generate mediant tree to level n
 ```
 
 #### Mediant Partition (`:~/`)
-```math-oracle/examples/intervals.rix#L29-32
+```rix
 a:b:~/n     // Partition using mediant endpoints
 1:2:~/2     // → [1/1:4/3, 4/3:3/2, 3/2:5/3, 5/3:2/1]
 0:1:~/1     // → Partition using level 1 mediants
@@ -2086,7 +2086,7 @@ a:b:~/n     // Partition using mediant endpoints
 Random operations provide stochastic sampling and partitioning:
 
 #### Random Point Selection (`:%`)
-```math-oracle/examples/intervals.rix#L34-38
+```rix
 a:b:%(n, m)  // Choose n points, max denominator m
 a:b:%n       // Choose n points (default max denominator)
 1:10:%5      // → 5 random numbers in [1, 10]
@@ -2094,7 +2094,7 @@ a:b:%n       // Choose n points (default max denominator)
 ```
 
 #### Random Partitioning (`:/%`)
-```math-oracle/examples/intervals.rix#L40-43
+```rix
 a:b:/%n     // Partition into n random sub-intervals
 1:10:/%3    // → 3 randomly-sized sub-intervals
 0:1:/%5     // → 5 random partitions of unit interval
@@ -2105,7 +2105,7 @@ a:b:/%n     // Partition into n random sub-intervals
 Infinite sequences extend beyond bounded intervals:
 
 #### Infinite Increment (`::+`)
-```math-oracle/examples/intervals.rix#L45-48
+```rix
 a::+n       // Infinite sequence from a, stepping by +n (or -n for decrement)
 5::+2       // → 5, 7, 9, 11, 13, ...
 0::+PI      // → 0, π, 2π, 3π, 4π, ...
@@ -2113,7 +2113,7 @@ a::+n       // Infinite sequence from a, stepping by +n (or -n for decrement)
 ```
 
 #### Infinite Decrement (`::+ -n`)
-```math-oracle/examples/intervals.rix#L50-53
+```rix
 a::+ -n     // Infinite sequence from a, stepping by -n
 10::+ -3    // → 10, 7, 4, 1, -2, -5, ...
 PI::+ -0.1  // → π, π-0.1, π-0.2, π-0.3, ...
@@ -2123,7 +2123,7 @@ PI::+ -0.1  // → π, π-0.1, π-0.2, π-0.3, ...
 
 Interval operations can be chained and combined:
 
-```math-oracle/examples/intervals.rix#L55-59
+```rix
 (a:b :+ n) :: m          // Step then divide
 min_val:max_val :~depth  // Variable bounds with mediants
 0:360 :+ 30 :/%5         // Angular steps then random partition
@@ -2184,21 +2184,21 @@ All interval operators share the same precedence level as the basic interval ope
 ### Use Cases
 
 #### Scientific Computing
-```math-oracle/examples/intervals.rix#L61-64
+```rix
 0:1::100                 // Integration points
 -3:3::plot_resolution   // Function plotting
 data_min:data_max:/:bins // Histogram binning
 ```
 
 #### Monte Carlo Methods
-```math-oracle/examples/intervals.rix#L66-69
+```rix
 -1:1:%(samples, precision)  // Random sampling
 bounds_low:bounds_high:/%trials // Random partitioning
 0::+step_size              // Infinite walk sequence
 ```
 
 #### Musical Applications
-```math-oracle/examples/intervals.rix#L71-74
+```rix
 fundamental:overtone_limit :+ fundamental // Harmonic series
 tempo_min:tempo_max::variations          // Tempo scaling
 note_start:note_end:~microtonal_depth   // Microtonal divisions

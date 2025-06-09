@@ -31,43 +31,74 @@ function demonstrateInterval(code, description) {
         console.log(`AST Type: ${expr.type}`);
         
         // Display key properties based on operation type
-        if (expr.type === 'BinaryOperation' && expr.operator === ':') {
+        if (expr.type === 'Number' && expr.value.includes(':')) {
+            // Handle interval number tokens like "1:10"
+            console.log(`Interval: [${expr.value}]`);
+        } else if (expr.type === 'BinaryOperation' && expr.operator === ':') {
             console.log(`Interval: [${expr.left.value || expr.left.name} : ${expr.right.value || expr.right.name}]`);
         } else if (expr.type === 'IntervalStepping') {
             const interval = expr.interval;
-            console.log(`Interval: [${interval.left.value} : ${interval.right.value}]`);
-            console.log(`Step: ${expr.step.value}, Direction: ${expr.direction}`);
-        } else if (expr.type === 'IntervalDivision') {
+            if (interval && interval.value && interval.value.includes(':')) {
+                console.log(`Interval: [${interval.value}]`);
+            } else if (interval && interval.left && interval.right) {
+                console.log(`Interval: [${interval.left.value || interval.left.name} : ${interval.right.value || interval.right.name}]`);
+            }
+            console.log(`Step: ${expr.step.value || expr.step.name}`);
+        } else if (expr.type === 'IntervalDivision' || expr.type === 'equally_spaced') {
             const interval = expr.interval;
-            console.log(`Interval: [${interval.left.value} : ${interval.right.value}]`);
-            console.log(`Points: ${expr.count.value}, Type: ${expr.type}`);
+            if (interval && interval.value && interval.value.includes(':')) {
+                console.log(`Interval: [${interval.value}]`);
+            } else if (interval && interval.left && interval.right) {
+                console.log(`Interval: [${interval.left.value || interval.left.name} : ${interval.right.value || interval.right.name}]`);
+            }
+            console.log(`Points: ${expr.count.value || expr.count.name}, Type: equally_spaced`);
         } else if (expr.type === 'IntervalPartition') {
             const interval = expr.interval;
-            console.log(`Interval: [${interval.left.value} : ${interval.right.value}]`);
-            console.log(`Sub-intervals: ${expr.count.value}`);
+            if (interval && interval.value && interval.value.includes(':')) {
+                console.log(`Interval: [${interval.value}]`);
+            } else if (interval && interval.left && interval.right) {
+                console.log(`Interval: [${interval.left.value || interval.left.name} : ${interval.right.value || interval.right.name}]`);
+            }
+            console.log(`Sub-intervals: ${expr.count.value || expr.count.name}`);
         } else if (expr.type === 'IntervalMediants') {
             const interval = expr.interval;
-            console.log(`Interval: [${interval.left.value} : ${interval.right.value}]`);
-            console.log(`Levels: ${expr.levels.value}`);
+            if (interval && interval.value && interval.value.includes(':')) {
+                console.log(`Interval: [${interval.value}]`);
+            } else if (interval && interval.left && interval.right) {
+                console.log(`Interval: [${interval.left.value || interval.left.name} : ${interval.right.value || interval.right.name}]`);
+            }
+            console.log(`Levels: ${expr.levels.value || expr.levels.name}`);
         } else if (expr.type === 'IntervalMediantPartition') {
             const interval = expr.interval;
-            console.log(`Interval: [${interval.left.value} : ${interval.right.value}]`);
-            console.log(`Mediant Levels: ${expr.levels.value}`);
+            if (interval && interval.value && interval.value.includes(':')) {
+                console.log(`Interval: [${interval.value}]`);
+            } else if (interval && interval.left && interval.right) {
+                console.log(`Interval: [${interval.left.value || interval.left.name} : ${interval.right.value || interval.right.name}]`);
+            }
+            console.log(`Mediant Levels: ${expr.levels.value || expr.levels.name}`);
         } else if (expr.type === 'IntervalRandom') {
             const interval = expr.interval;
-            console.log(`Interval: [${interval.left.value} : ${interval.right.value}]`);
-            if (expr.parameters.type === 'Tuple') {
-                console.log(`Parameters: (${expr.parameters.elements.map(e => e.value).join(', ')})`);
+            if (interval && interval.value && interval.value.includes(':')) {
+                console.log(`Interval: [${interval.value}]`);
+            } else if (interval && interval.left && interval.right) {
+                console.log(`Interval: [${interval.left.value || interval.left.name} : ${interval.right.value || interval.right.name}]`);
+            }
+            if (expr.parameters?.type === 'Tuple') {
+                console.log(`Parameters: (${expr.parameters.elements.map(e => e.value || e.name).join(', ')})`);
             } else {
-                console.log(`Count: ${expr.parameters.value}`);
+                console.log(`Count: ${expr.parameters?.value || expr.parameters?.name || 'unknown'}`);
             }
         } else if (expr.type === 'IntervalRandomPartition') {
             const interval = expr.interval;
-            console.log(`Interval: [${interval.left.value} : ${interval.right.value}]`);
-            console.log(`Random Partitions: ${expr.count.value}`);
+            if (interval && interval.value && interval.value.includes(':')) {
+                console.log(`Interval: [${interval.value}]`);
+            } else if (interval && interval.left && interval.right) {
+                console.log(`Interval: [${interval.left.value || interval.left.name} : ${interval.right.value || interval.right.name}]`);
+            }
+            console.log(`Random Partitions: ${expr.count.value || expr.count.name}`);
         } else if (expr.type === 'InfiniteSequence') {
-            console.log(`Start: ${expr.start.value}`);
-            console.log(`Step: ${expr.step.value}, Direction: ${expr.direction}`);
+            console.log(`Start: ${expr.start.value || expr.start.name}`);
+            console.log(`Step: ${expr.step.value || expr.step.name}`);
         }
         
         console.log('✓ Parse successful');
@@ -87,7 +118,7 @@ demonstrateInterval('a:b;', 'Variable Bounds Interval');
 
 // Interval Stepping
 demonstrateInterval('1:10 :+ 2;', 'Increment Stepping: 1, 3, 5, 7, 9');
-demonstrateInterval('10:1 :- 3;', 'Decrement Stepping: 10, 7, 4, 1');
+demonstrateInterval('10:1 :+ -3;', 'Decrement Stepping: 10, 7, 4, 1');
 demonstrateInterval('0:PI :+ 0.5;', 'Decimal Stepping with Constants');
 
 // Interval Division
@@ -110,7 +141,7 @@ demonstrateInterval('0:100:/%5;', 'Random Partition into 5 Sub-intervals');
 
 // Infinite Ranges
 demonstrateInterval('5::+2;', 'Infinite Increment: 5, 7, 9, 11, ...');
-demonstrateInterval('10::-3;', 'Infinite Decrement: 10, 7, 4, 1, ...');
+demonstrateInterval('10::+ -3;', 'Infinite Decrement: 10, 7, 4, 1, ...');
 demonstrateInterval('0::+PI;', 'Infinite with PI Step: 0, π, 2π, 3π, ...');
 
 // Complex Examples
@@ -190,7 +221,7 @@ console.log('• Variable expressions in bounds: (expr1):(expr2) :+ step');
 console.log('\n\nSemantic Interpretations');
 console.log('========================');
 console.log('• a:b :+ n → [a, a+n, a+2n, ...] until > b');
-console.log('• a:b :- n → [a, a-n, a-2n, ...] until < b'); 
+console.log('• a:b :+ -n → [a, a-n, a-2n, ...] until < b');
 console.log('• a:b::n → n equally spaced points including endpoints');
 console.log('• a:b:/:n → n sub-intervals with equal width');
 console.log('• a:b:~n → mediant tree to level n');
@@ -198,4 +229,4 @@ console.log('• a:b:~/n → intervals partitioned by level n mediants');
 console.log('• a:b:%(m,d) → m random points with max denominator d');
 console.log('• a:b:/%n → n random sub-intervals');
 console.log('• a::+n → infinite sequence a, a+n, a+2n, ...');
-console.log('• a::-n → infinite sequence a, a-n, a-2n, ...');
+console.log('• a::+ -n → infinite sequence a, a-n, a-2n, ...');

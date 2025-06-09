@@ -2730,8 +2730,7 @@ describe("RiX Parser", () => {
               type: 'Number',
               value: '1:10'
             },
-            step: { type: 'Number', value: '2' },
-            direction: 'increment'
+            step: { type: 'Number', value: '2' }
           }
         }]);
       });
@@ -2746,8 +2745,7 @@ describe("RiX Parser", () => {
               type: 'Number',
               value: '10:1'
             },
-            step: { type: 'Number', value: '-3' },
-            direction: 'increment'
+            step: { type: 'Number', value: '-3' }
           }
         }]);
       });
@@ -2879,8 +2877,7 @@ describe("RiX Parser", () => {
           expression: {
             type: 'InfiniteSequence',
             start: { type: 'Number', value: '5' },
-            step: { type: 'Number', value: '2' },
-            direction: 'increment'
+            step: { type: 'Number', value: '2' }
           }
         }]);
       });
@@ -2892,8 +2889,7 @@ describe("RiX Parser", () => {
           expression: {
             type: 'InfiniteSequence',
             start: { type: 'Number', value: '10' },
-            step: { type: 'Number', value: '-3' },
-            direction: 'decrement'
+            step: { type: 'Number', value: '-3' }
           }
         }]);
       });
@@ -2912,8 +2908,7 @@ describe("RiX Parser", () => {
                 type: 'Number',
                 value: '1:10'
               },
-              step: { type: 'Number', value: '2' },
-              direction: 'increment'
+              step: { type: 'Number', value: '2' }
             },
             count: { type: 'Number', value: '3' }
           }
@@ -2932,8 +2927,7 @@ describe("RiX Parser", () => {
               left: { type: 'UserIdentifier', name: 'a' },
               right: { type: 'UserIdentifier', name: 'b' }
             },
-            step: { type: 'UserIdentifier', name: 'n' },
-            direction: 'increment'
+            step: { type: 'UserIdentifier', name: 'n' }
           }
         }]);
       });
@@ -2981,8 +2975,7 @@ describe("RiX Parser", () => {
           expression: {
             type: 'IntervalStepping',
             interval: { type: 'UserIdentifier', name: 'a' },
-            step: { type: 'Number', value: '3' },
-            direction: 'increment'
+            step: { type: 'Number', value: '3' }
           }
         }]);
       });
@@ -3043,8 +3036,7 @@ describe("RiX Parser", () => {
           expression: {
             type: 'InfiniteSequence',
             start: { type: 'UserIdentifier', name: 'start' },
-            step: { type: 'UserIdentifier', name: 'step' },
-            direction: 'increment'
+            step: { type: 'UserIdentifier', name: 'step' }
           }
         }]);
       });
@@ -3056,8 +3048,7 @@ describe("RiX Parser", () => {
           expression: {
             type: 'InfiniteSequence',
             start: { type: 'UserIdentifier', name: 'start' },
-            step: { type: 'UnaryOperation', operator: '-', operand: { type: 'UserIdentifier', name: 'step' } },
-            direction: 'decrement'
+            step: { type: 'UnaryOperation', operator: '-', operand: { type: 'UserIdentifier', name: 'step' } }
           }
         }]);
       });

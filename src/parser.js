@@ -562,12 +562,11 @@ class Parser {
                 original: left.original + operator.original
             });
         } else if (operator.value === ':+') {
-            // Interval stepping (increment)
+            // Interval stepping (direction determined at eval time based on step sign)
             right = this.parseExpression(rightPrec);
             return this.createNode('IntervalStepping', {
                 interval: left,
                 step: right,
-                direction: 'increment',
                 pos: left.pos,
                 original: left.original + operator.original
             });
@@ -627,21 +626,12 @@ class Parser {
                 original: left.original + operator.original
             });
         } else if (operator.value === '::+') {
-            // Infinite sequence (increment/decrement based on step sign)
+            // Infinite sequence (direction determined at eval time based on step sign)
             right = this.parseExpression(rightPrec);
-            
-            // Determine direction based on step value
-            let direction = 'increment';
-            if (right.type === 'Number' && parseFloat(right.value) < 0) {
-                direction = 'decrement';
-            } else if (right.type === 'UnaryOperation' && right.operator === '-') {
-                direction = 'decrement';
-            }
             
             return this.createNode('InfiniteSequence', {
                 start: left,
                 step: right,
-                direction: direction,
                 pos: left.pos,
                 original: left.original + operator.original
             });
