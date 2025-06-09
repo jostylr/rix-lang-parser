@@ -64,8 +64,26 @@ const SYMBOL_TABLE = {
     '?<=': { precedence: PRECEDENCE.COMPARISON, associativity: 'left', type: 'infix' },
     '?>=': { precedence: PRECEDENCE.COMPARISON, associativity: 'left', type: 'infix' },
     
-    // Interval operator
+    // Interval operators
     ':': { precedence: PRECEDENCE.INTERVAL, associativity: 'left', type: 'infix' },
+    
+    // Interval stepping
+    ':+': { precedence: PRECEDENCE.INTERVAL, associativity: 'left', type: 'infix' },
+    
+    // Interval division
+    '::': { precedence: PRECEDENCE.INTERVAL, associativity: 'left', type: 'infix' },
+    ':/:': { precedence: PRECEDENCE.INTERVAL, associativity: 'left', type: 'infix' },
+    
+    // Interval mediants
+    ':~': { precedence: PRECEDENCE.INTERVAL, associativity: 'left', type: 'infix' },
+    ':~/': { precedence: PRECEDENCE.INTERVAL, associativity: 'left', type: 'infix' },
+    
+    // Random interval operations
+    ':%': { precedence: PRECEDENCE.INTERVAL, associativity: 'left', type: 'infix' },
+    ':/%': { precedence: PRECEDENCE.INTERVAL, associativity: 'left', type: 'infix' },
+    
+    // Infinite ranges
+    '::+': { precedence: PRECEDENCE.INTERVAL, associativity: 'left', type: 'infix' },
     
     // Addition/subtraction
     '+': { precedence: PRECEDENCE.ADDITION, associativity: 'left', type: 'infix', prefix: true },
@@ -540,6 +558,90 @@ class Parser {
             return this.createNode('Reduce', {
                 left: left,
                 right: right,
+                pos: left.pos,
+                original: left.original + operator.original
+            });
+        } else if (operator.value === ':+') {
+            // Interval stepping (increment)
+            right = this.parseExpression(rightPrec);
+            return this.createNode('IntervalStepping', {
+                interval: left,
+                step: right,
+                direction: 'increment',
+                pos: left.pos,
+                original: left.original + operator.original
+            });
+        } else if (operator.value === '::') {
+            // Interval division into equally spaced points
+            right = this.parseExpression(rightPrec);
+            return this.createNode('IntervalDivision', {
+                interval: left,
+                count: right,
+                type: 'equally_spaced',
+                pos: left.pos,
+                original: left.original + operator.original
+            });
+        } else if (operator.value === ':/:') {
+            // Interval partition into sub-intervals
+            right = this.parseExpression(rightPrec);
+            return this.createNode('IntervalPartition', {
+                interval: left,
+                count: right,
+                pos: left.pos,
+                original: left.original + operator.original
+            });
+        } else if (operator.value === ':~') {
+            // Interval mediants
+            right = this.parseExpression(rightPrec);
+            return this.createNode('IntervalMediants', {
+                interval: left,
+                levels: right,
+                pos: left.pos,
+                original: left.original + operator.original
+            });
+        } else if (operator.value === ':~/') {
+            // Interval mediant partition
+            right = this.parseExpression(rightPrec);
+            return this.createNode('IntervalMediantPartition', {
+                interval: left,
+                levels: right,
+                pos: left.pos,
+                original: left.original + operator.original
+            });
+        } else if (operator.value === ':%') {
+            // Random selection from interval
+            right = this.parseExpression(rightPrec);
+            return this.createNode('IntervalRandom', {
+                interval: left,
+                parameters: right,
+                pos: left.pos,
+                original: left.original + operator.original
+            });
+        } else if (operator.value === ':/%') {
+            // Random partition of interval
+            right = this.parseExpression(rightPrec);
+            return this.createNode('IntervalRandomPartition', {
+                interval: left,
+                count: right,
+                pos: left.pos,
+                original: left.original + operator.original
+            });
+        } else if (operator.value === '::+') {
+            // Infinite sequence (increment/decrement based on step sign)
+            right = this.parseExpression(rightPrec);
+            
+            // Determine direction based on step value
+            let direction = 'increment';
+            if (right.type === 'Number' && parseFloat(right.value) < 0) {
+                direction = 'decrement';
+            } else if (right.type === 'UnaryOperation' && right.operator === '-') {
+                direction = 'decrement';
+            }
+            
+            return this.createNode('InfiniteSequence', {
+                start: left,
+                step: right,
+                direction: direction,
                 pos: left.pos,
                 original: left.original + operator.original
             });

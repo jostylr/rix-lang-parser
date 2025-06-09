@@ -1240,23 +1240,22 @@ describe("Math Oracle Tokenizer", () => {
 
     describe("interval operators", () => {
       test("interval operators", () => {
-        const tokens = tokenize("::+ ::- :/+ :/% :: :+ :- :/ :%");
+        const tokens = tokenize("::+ :~/ :/:  :~ :/% :: :+ :%");
         expect(tokens).toEqual(
           withEnd([
             { type: "Symbol", original: "::+", value: "::+", pos: [0, 0, 3] },
-            { type: "Symbol", original: " ::-", value: "::-", pos: [3, 4, 7] },
-            { type: "Symbol", original: " :/+", value: ":/+", pos: [7, 8, 11] },
+            { type: "Symbol", original: " :~/", value: ":~/", pos: [3, 4, 7] },
+            { type: "Symbol", original: " :/:", value: ":/:", pos: [7, 8, 11] },
+            { type: "Symbol", original: "  :~", value: ":~", pos: [11, 13, 15] },
             {
               type: "Symbol",
               original: " :/%",
               value: ":/%",
-              pos: [11, 12, 15],
+              pos: [15, 16, 19],
             },
-            { type: "Symbol", original: " ::", value: "::", pos: [15, 16, 18] },
-            { type: "Symbol", original: " :+", value: ":+", pos: [18, 19, 21] },
-            { type: "Symbol", original: " :-", value: ":-", pos: [21, 22, 24] },
-            { type: "Symbol", original: " :/", value: ":/", pos: [24, 25, 27] },
-            { type: "Symbol", original: " :%", value: ":%", pos: [27, 28, 30] },
+            { type: "Symbol", original: " ::", value: "::", pos: [19, 20, 22] },
+            { type: "Symbol", original: " :+", value: ":+", pos: [22, 23, 25] },
+            { type: "Symbol", original: " :%", value: ":%", pos: [25, 26, 28] },
           ]),
         );
       });

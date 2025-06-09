@@ -2693,4 +2693,374 @@ describe("RiX Parser", () => {
       }]);
     });
   });
+
+  describe('Interval Manipulation', () => {
+    describe('Basic Intervals', () => {
+      test('simple interval creation', () => {
+        const ast = parseCode('1:10;');
+        expect(stripMetadata(ast)).toEqual([{
+          type: 'Statement',
+          expression: {
+            type: 'Number',
+            value: '1:10'
+          }
+        }]);
+      });
+
+      test('decimal intervals', () => {
+        const ast = parseCode('1.5:10.7;');
+        expect(stripMetadata(ast)).toEqual([{
+          type: 'Statement',
+          expression: {
+            type: 'Number',
+            value: '1.5:10.7'
+          }
+        }]);
+      });
+    });
+
+    describe('Interval Stepping', () => {
+      test('increment stepping', () => {
+        const ast = parseCode('1:10 :+ 2;');
+        expect(stripMetadata(ast)).toEqual([{
+          type: 'Statement',
+          expression: {
+            type: 'IntervalStepping',
+            interval: {
+              type: 'Number',
+              value: '1:10'
+            },
+            step: { type: 'Number', value: '2' },
+            direction: 'increment'
+          }
+        }]);
+      });
+
+      test('decrement stepping', () => {
+        const ast = parseCode('10:1 :+ -3;');
+        expect(stripMetadata(ast)).toEqual([{
+          type: 'Statement',
+          expression: {
+            type: 'IntervalStepping',
+            interval: {
+              type: 'Number',
+              value: '10:1'
+            },
+            step: { type: 'Number', value: '-3' },
+            direction: 'increment'
+          }
+        }]);
+      });
+    });
+
+    describe('Interval Division', () => {
+      test('equally spaced points', () => {
+        const ast = parseCode('1:5::3;');
+        expect(stripMetadata(ast)).toEqual([{
+          type: 'Statement',
+          expression: {
+            type: 'IntervalDivision',
+            interval: {
+              type: 'Number',
+              value: '1:5'
+            },
+            count: { type: 'Number', value: '3' },
+            type: 'equally_spaced'
+          }
+        }]);
+      });
+
+      test('partition into sub-intervals', () => {
+        const ast = parseCode('1:5:/:2;');
+        expect(stripMetadata(ast)).toEqual([{
+          type: 'Statement',
+          expression: {
+            type: 'IntervalPartition',
+            interval: {
+              type: 'Number',
+              value: '1:5'
+            },
+            count: { type: 'Number', value: '2' }
+          }
+        }]);
+      });
+    });
+
+    describe('Interval Mediants', () => {
+      test('mediant calculation', () => {
+        const ast = parseCode('1:2:~2;');
+        expect(stripMetadata(ast)).toEqual([{
+          type: 'Statement',
+          expression: {
+            type: 'IntervalMediants',
+            interval: {
+              type: 'Number',
+              value: '1:2'
+            },
+            levels: { type: 'Number', value: '2' }
+          }
+        }]);
+      });
+
+      test('mediant partition', () => {
+        const ast = parseCode('1:2:~/2;');
+        expect(stripMetadata(ast)).toEqual([{
+          type: 'Statement',
+          expression: {
+            type: 'IntervalMediantPartition',
+            interval: {
+              type: 'Number',
+              value: '1:2'
+            },
+            levels: { type: 'Number', value: '2' }
+          }
+        }]);
+      });
+    });
+
+    describe('Random Selection and Partitioning', () => {
+      test('random point selection with count only', () => {
+        const ast = parseCode('1:10:%3;');
+        expect(stripMetadata(ast)).toEqual([{
+          type: 'Statement',
+          expression: {
+            type: 'IntervalRandom',
+            interval: {
+              type: 'Number',
+              value: '1:10'
+            },
+            parameters: { type: 'Number', value: '3' }
+          }
+        }]);
+      });
+
+      test('random point selection with tuple parameters', () => {
+        const ast = parseCode('1:10:%(3, 1);');
+        expect(stripMetadata(ast)).toEqual([{
+          type: 'Statement',
+          expression: {
+            type: 'IntervalRandom',
+            interval: {
+              type: 'Number',
+              value: '1:10'
+            },
+            parameters: {
+              type: 'Tuple',
+              elements: [
+                { type: 'Number', value: '3' },
+                { type: 'Number', value: '1' }
+              ]
+            }
+          }
+        }]);
+      });
+
+      test('random partition', () => {
+        const ast = parseCode('1:10:/%3;');
+        expect(stripMetadata(ast)).toEqual([{
+          type: 'Statement',
+          expression: {
+            type: 'IntervalRandomPartition',
+            interval: {
+              type: 'Number',
+              value: '1:10'
+            },
+            count: { type: 'Number', value: '3' }
+          }
+        }]);
+      });
+    });
+
+    describe('Infinite Ranges', () => {
+      test('infinite increment sequence', () => {
+        const ast = parseCode('5::+2;');
+        expect(stripMetadata(ast)).toEqual([{
+          type: 'Statement',
+          expression: {
+            type: 'InfiniteSequence',
+            start: { type: 'Number', value: '5' },
+            step: { type: 'Number', value: '2' },
+            direction: 'increment'
+          }
+        }]);
+      });
+
+      test('infinite decrement sequence', () => {
+        const ast = parseCode('10::+ -3;');
+        expect(stripMetadata(ast)).toEqual([{
+          type: 'Statement',
+          expression: {
+            type: 'InfiniteSequence',
+            start: { type: 'Number', value: '10' },
+            step: { type: 'Number', value: '-3' },
+            direction: 'decrement'
+          }
+        }]);
+      });
+    });
+
+    describe('Complex Interval Operations', () => {
+      test('chained interval operations', () => {
+        const ast = parseCode('1:10 :+ 2 :/%3;');
+        expect(stripMetadata(ast)).toEqual([{
+          type: 'Statement',
+          expression: {
+            type: 'IntervalRandomPartition',
+            interval: {
+              type: 'IntervalStepping',
+              interval: {
+                type: 'Number',
+                value: '1:10'
+              },
+              step: { type: 'Number', value: '2' },
+              direction: 'increment'
+            },
+            count: { type: 'Number', value: '3' }
+          }
+        }]);
+      });
+
+      test('interval with variable bounds', () => {
+        const ast = parseCode('a:b :+ n;');
+        expect(stripMetadata(ast)).toEqual([{
+          type: 'Statement',
+          expression: {
+            type: 'IntervalStepping',
+            interval: {
+              type: 'BinaryOperation',
+              operator: ':',
+              left: { type: 'UserIdentifier', name: 'a' },
+              right: { type: 'UserIdentifier', name: 'b' }
+            },
+            step: { type: 'UserIdentifier', name: 'n' },
+            direction: 'increment'
+          }
+        }]);
+      });
+
+      test('interval with expression bounds', () => {
+        const ast = parseCode('(x+1):(y*2) :: count;');
+        expect(stripMetadata(ast)).toEqual([{
+          type: 'Statement',
+          expression: {
+            type: 'IntervalDivision',
+            interval: {
+              type: 'BinaryOperation',
+              operator: ':',
+              left: {
+                type: 'Grouping',
+                expression: {
+                  type: 'BinaryOperation',
+                  operator: '+',
+                  left: { type: 'UserIdentifier', name: 'x' },
+                  right: { type: 'Number', value: '1' }
+                }
+              },
+              right: {
+                type: 'Grouping',
+                expression: {
+                  type: 'BinaryOperation',
+                  operator: '*',
+                  left: { type: 'UserIdentifier', name: 'y' },
+                  right: { type: 'Number', value: '2' }
+                }
+              }
+            },
+            count: { type: 'UserIdentifier', name: 'count' },
+            type: 'equally_spaced'
+          }
+        }]);
+      });
+    });
+
+    describe('Interval Operators with Identifiers', () => {
+      test('stepping with identifier interval', () => {
+        const ast = parseCode('a :+ 3;');
+        expect(stripMetadata(ast)).toEqual([{
+          type: 'Statement',
+          expression: {
+            type: 'IntervalStepping',
+            interval: { type: 'UserIdentifier', name: 'a' },
+            step: { type: 'Number', value: '3' },
+            direction: 'increment'
+          }
+        }]);
+      });
+
+      test('division with identifier interval', () => {
+        const ast = parseCode('myinterval::5;');
+        expect(stripMetadata(ast)).toEqual([{
+          type: 'Statement',
+          expression: {
+            type: 'IntervalDivision',
+            interval: { type: 'UserIdentifier', name: 'myinterval' },
+            count: { type: 'Number', value: '5' },
+            type: 'equally_spaced'
+          }
+        }]);
+      });
+
+      test('partition with identifier interval', () => {
+        const ast = parseCode('range:/:4;');
+        expect(stripMetadata(ast)).toEqual([{
+          type: 'Statement',
+          expression: {
+            type: 'IntervalPartition',
+            interval: { type: 'UserIdentifier', name: 'range' },
+            count: { type: 'Number', value: '4' }
+          }
+        }]);
+      });
+
+      test('mediants with identifier interval', () => {
+        const ast = parseCode('bounds:~2;');
+        expect(stripMetadata(ast)).toEqual([{
+          type: 'Statement',
+          expression: {
+            type: 'IntervalMediants',
+            interval: { type: 'UserIdentifier', name: 'bounds' },
+            levels: { type: 'Number', value: '2' }
+          }
+        }]);
+      });
+
+      test('random selection with identifier interval', () => {
+        const ast = parseCode('datarange:%10;');
+        expect(stripMetadata(ast)).toEqual([{
+          type: 'Statement',
+          expression: {
+            type: 'IntervalRandom',
+            interval: { type: 'UserIdentifier', name: 'datarange' },
+            parameters: { type: 'Number', value: '10' }
+          }
+        }]);
+      });
+
+      test('infinite sequence with identifier start', () => {
+        const ast = parseCode('start::+step;');
+        expect(stripMetadata(ast)).toEqual([{
+          type: 'Statement',
+          expression: {
+            type: 'InfiniteSequence',
+            start: { type: 'UserIdentifier', name: 'start' },
+            step: { type: 'UserIdentifier', name: 'step' },
+            direction: 'increment'
+          }
+        }]);
+      });
+
+      test('infinite sequence with negative step identifier', () => {
+        const ast = parseCode('start::+ -step;');
+        expect(stripMetadata(ast)).toEqual([{
+          type: 'Statement',
+          expression: {
+            type: 'InfiniteSequence',
+            start: { type: 'UserIdentifier', name: 'start' },
+            step: { type: 'UnaryOperation', operator: '-', operand: { type: 'UserIdentifier', name: 'step' } },
+            direction: 'decrement'
+          }
+        }]);
+      });
+    });
+  });
 });
