@@ -1,15 +1,8 @@
 {
-  "name": "rix-language",
+  "name": "rix-language-parser",
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "test": "node --experimental-vm-modules node_modules/.bin/jest"
-  },
-  "jest": {
-    "testEnvironment": "node",
-    "transform": {}
-  },
-  "devDependencies": {
-    "jest": "^29.7.0"
+    "test": "bun test"
   }
 }
