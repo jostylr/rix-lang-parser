@@ -1,10 +1,12 @@
-# Mathematical Expression Language Specification
+# RiX Mathematical Expression Language Specification
 
 ## Overview
 
-This document defines the syntax, semantics, and practical usage of a mathematical expression language designed for symbolic computation, mathematical exploration, and interactive scripting.
+This document defines the syntax, semantics, and practical usage of the RiX (Rational Interval Expression Language) mathematical expression language designed for symbolic computation, mathematical exploration, and interactive scripting.
 
 The language features rich support for intervals, rationals, mixed numbers, pattern-matching functions, metadata-annotated objects, robust piping and mapping, and a regular system for containers, sets, maps, and matrices.
+
+**Note:** This specification covers the complete RiX language. The current repository implements the tokenizer and parser components that generate Abstract Syntax Trees (ASTs) from RiX source code. Expression evaluation, real number oracles, and interactive REPL functionality are provided by separate repositories in the RiX ecosystem.
 
 ---
 

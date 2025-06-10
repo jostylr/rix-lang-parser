@@ -1,27 +1,43 @@
 # ![RiX Logo](./rix-logo.png)
-**RiX: Rational Interval Expression Language**
+**RiX Language Parser & Tokenizer**
 
-A flexible, extensible parser and REPL for mathematical expressions, built in JavaScript. RiX is designed for mathematical exploration, supporting arithmetic, polynomials, rational functions, assignment, function definitions, interval and mixed number notation, units, algebraic extensions, real numbers as oracles, and much more.
+A comprehensive tokenizer and parser for the RiX (Rational Interval Expression Language) mathematical expression language, built in JavaScript. This library provides robust parsing capabilities for mathematical expressions with support for intervals, mixed numbers, units, algebraic extensions, and advanced mathematical notation.
 
 ---
 
 ## Features
 
+- **Complete Tokenization:**
+  - Numbers: integers, decimals, rationals, mixed numbers, intervals, scientific notation
+  - Strings: flexible quote systems with N-delimiter support for embedding
+  - Comments: single-line and multi-level block comments
+  - Operators: comprehensive mathematical and functional operators
+  - Identifiers: Unicode support with system/user distinction
+
+- **Comprehensive Parsing:**
+  - Pratt parser with full operator precedence
+  - Function definitions with advanced parameter handling
+  - Pattern matching functions with conditions
+  - Array generators and sequence notation
+  - Matrix and tensor parsing
+  - Metadata and property annotations
+  - Symbolic calculus notation (derivatives, integrals)
+  - Pipe operations and functional constructs
+
 - **Rich Mathematical Notation:**
-  - Arithmetic, polynomials, rational functions, assignments, function definitions, boolean expressions, equations/inequalities, mixed numbers, and interval arithmetic.
-- **Flexible Operator Syntax:**
-  - Clear distinction between assignment (`:=`), boolean test (`?=`), identity (`=`), equations/inequalities to solve (`:=:`, `:>:`, etc.).
-  - Interval (`a:b`), mixed number (`1..3/4`), and rational number support (`3/4`).
-  - Support for function piping, map/filter/reduce constructs, and advanced function pattern matching.
-- **Units and Algebraic Extensions:**
-  - Attach units with `~unit~`, perform unit arithmetic, and convert units (`x~~mi/m~`).
-  - Algebraic primitives (like `sqrt2`) and complex numbers as first-class objects.
-- **Real Numbers as Oracles:**
-  - Real numbers are implemented as oracles, supporting exact computation and approximation.
-- **String Literals and Embedded Code:**
-  - Powerful quote and backtick systems supporting any number of delimiters, enabling embedded languages and code blocks without escape headaches.
-- **REPL-Ready:**
-  - Designed for interactive exploration, both in-browser and in terminal.
+  - Interval arithmetic (`2:5`, `1.5:2.7`)
+  - Mixed numbers (`1..3/4`)
+  - Rational numbers (`3/4`)
+  - Numbers with units (`3.2~m~`, `9.8~m/s^2~`)
+  - Algebraic extensions (`2~i~`, `1+3~sqrt2~`)
+  - Repeating decimals (`0.12#45`)
+
+- **Advanced Language Features:**
+  - Code blocks and embedded languages
+  - Multiple assignment operators (`:=`, `:=:`, `:>:`)
+  - Comprehensive pipe operators (`|>`, `|>>`, `|>?`, `|>:`)
+  - Array generators (`|+`, `|*`, `|:`, `|^`)
+  - Pattern matching with metadata
 
 ---
 
@@ -43,90 +59,173 @@ x ?= 3                          // Boolean test: is x equal to 3?
 x^2 :<: 4                       // Inequality to solve
 ```
 
-## Tokenization and Parsing
-	•	Identifiers:
-	•	Start with a Unicode letter; case of first letter determines system (Sin) vs. user (sin) identifiers. No underscores allowed.
-	•	Numbers:
-	•	Support for integers, decimals (with/without leading digit), rationals, mixed numbers, intervals, decimals with intervals/repeats, units, and algebraic primitives.
-	•	Symbols:
-	•	Operators and delimiters defined by a fixed list, matched by longest-first (maximal munch).
-	•	Strings:
-	•	Double-quoted and backtick-quoted literals support N-of-a-kind delimiters for easy embedding.
-	•	Comments:
-	•	// for single-line, /* ... */, /** ... **/, /*** ... ***/ for block comments (N stars to open/close).
+### Tokenization Features
+- **Identifiers:** Unicode letters, case-sensitive first letter determines system vs user scope
+- **Numbers:** Full support for all mathematical number formats including intervals and units
+- **Symbols:** Maximal munch tokenization for complex operators
+- **Strings:** N-delimiter quote system (`""hello""`, ```code```) for easy embedding
+- **Comments:** Multiple levels (`//`, `/* */`, `/** **/`, `/*** ***/`)
 
+### Parsing Features
+- **AST Generation:** Complete Abstract Syntax Tree generation for all language constructs
+- **Operator Precedence:** Full precedence table with proper associativity
+- **Error Handling:** Comprehensive error reporting with position information
+- **Extensibility:** Modular design for adding new operators and constructs
 
-## Getting Started
+---
 
-## Prerequisites
-	•	Node.js (for terminal REPL) or Bun
-	•	Modern browser (for browser-based REPL)
+## Installation
 
-## Install
-
-Clone this repository:
-
-```
-git clone https://github.com/yourusername/rix.git
-cd rix
+```bash
+npm install rix-language-parser
 ```
 
-Install dependencies if needed:
+## Usage
 
+### Basic Parsing
+
+```javascript
+import { tokenize, parse } from 'rix-language-parser';
+
+// Tokenize input
+const tokens = tokenize('x := 2 + 3 * y');
+console.log(tokens);
+
+// Parse tokens into AST
+const ast = parse(tokens);
+console.log(ast);
+
+// Or parse directly from string
+const ast2 = parse('f(x) := x^2 + 1');
+console.log(ast2);
 ```
-npm install
+
+### Advanced Features
+
+```javascript
+import { parse } from 'rix-language-parser';
+
+// Function definitions
+const funcDef = parse('power(x, n := 2) :-> x^n');
+
+// Pattern matching
+const patternFunc = parse('abs :=> [(x ? x >= 0) -> x, (x ? x < 0) -> -x]');
+
+// Array generators
+const generator = parse('[1 |+ 2 |^ 10]'); // Arithmetic sequence
+
+// Matrix parsing
+const matrix = parse('[[1, 2; 3, 4]]');
+
+// Symbolic calculus
+const derivative = parse("f'(x)");
+const integral = parse("'f(x)");
 ```
-Also bun works with this.
 
-## Run the REPL
+## API Reference
 
-### Terminal REPL
+### `tokenize(input: string): Token[]`
 
-```
-bun repl.js
-```
+Tokenizes a RiX language string into an array of tokens.
 
-### Browser REPL
+**Parameters:**
+- `input`: String containing RiX language code
 
-Open index.html in your browser.
-No server needed—runs entirely in-browser.
+**Returns:** Array of token objects with properties:
+- `type`: Token type ('Number', 'Identifier', 'Symbol', 'String', 'End')
+- `value`: Processed token value
+- `original`: Original text from input
+- `pos`: Position information [start, valueStart, end]
+- `kind`: Additional type information (for Identifiers and Strings)
 
+### `parse(input: string | Token[], systemLookup?: Function): ASTNode`
+
+Parses RiX language tokens or string into an Abstract Syntax Tree.
+
+**Parameters:**
+- `input`: String or array of tokens to parse
+- `systemLookup`: Optional function to resolve system identifiers
+
+**Returns:** AST node representing the parsed expression
+
+## AST Node Types
+
+The parser generates various AST node types:
+
+- **Assignment:** `{ type: 'Assignment', operator: ':=', left: ..., right: ... }`
+- **FunctionDefinition:** `{ type: 'FunctionDefinition', name: ..., parameters: ..., body: ... }`
+- **BinaryOperation:** `{ type: 'BinaryOperation', operator: '+', left: ..., right: ... }`
+- **Array:** `{ type: 'Array', elements: [...] }`
+- **Matrix:** `{ type: 'Matrix', rows: [[...], [...]] }`
+- **GeneratorChain:** `{ type: 'GeneratorChain', start: ..., operators: [...] }`
+- **Number:** `{ type: 'Number', value: '3.14', format: 'decimal' }`
+- **Identifier:** `{ type: 'UserIdentifier' | 'SystemIdentifier', name: 'x' }`
 
 ## Project Structure
 
-Don't trust this.
+```
+├── src/
+│   ├── tokenizer.js      — Complete tokenizer implementation
+│   ├── parser.js         — Pratt parser with full language support
+├── tests/
+│   ├── tokenizer.test.js — Comprehensive tokenizer tests (129 tests)
+│   ├── parser.test.js    — Complete parser tests (185 tests)
+│   └── array-generators.test.js — Generator-specific tests
+├── examples/             — 36+ example files demonstrating features
+├── docs/                 — Feature-specific documentation
+├── design/               — Language specification and design docs
+└── index.js             — Main export file
+```
 
-	•	repl.js            — Terminal REPL entry point
-	•	index.html         — Browser REPL UI
-	•	parser.js          — Pratt parser for RiX
-	•	tokenizer.js       — Tokenizer implementing the spec
-	•	rational.js        — Rational/interval arithmetic support
-	•	units.js           — Unit arithmetic and conversion
-	•	oracles.js         — Real number (oracle) support
-	•	README.md          — This file
-	•	tokenizing-spec.txt— Complete tokenization spec
-	•	rix-logo.png       — Project logo
+## Language Specification
 
+This parser implements the complete RiX language specification including:
 
+- **Numbers:** All formats from integers to complex algebraic extensions
+- **Operators:** 50+ mathematical and functional operators with proper precedence
+- **Functions:** Multiple definition styles with advanced parameter handling
+- **Collections:** Arrays, matrices, tensors, sets, maps with metadata support
+- **Control Flow:** Pattern matching, conditional expressions, pipe operations
+- **Syntax:** Flexible string systems, code blocks, embedded languages
 
-## Development Notes
+For complete language documentation, see the `design/` directory.
 
-	•	Tokenizer uses maximal munch: always matches the longest valid symbol at each input position.
-	•	Strings and backticks support any-length N delimiters (e.g., ""Hello"", code), simplifying embedded languages.
-	•	Identifiers with uppercase first letter are system-level, others are userland.
-	•	All syntax and parsing rules are detailed in tokenizing-spec.txt.
+## Testing
 
+```bash
+npm test
+```
 
+The test suite includes:
+- **314 total tests** across tokenizer and parser
+- **Complete coverage** of language specification
+- **Edge case handling** and error conditions
+- **Position tracking** validation
+- **AST structure** verification
+
+## Related Projects
+
+This parser is part of the RiX language ecosystem:
+
+- **rix-language-evaluator** - Expression evaluation and mathematical computation
+- **rix-language-repl** - Interactive REPL environment
+- **rix-language-browser** - Web-based interface and visualization
+
+## Contributing
+
+Contributions are welcome! This repository focuses specifically on:
+- Tokenization improvements and bug fixes
+- Parser enhancements and new language features
+- AST structure optimizations
+- Test coverage expansion
+- Documentation improvements
+
+Please ensure all tests pass and add appropriate test coverage for new features.
 
 ## License
 
 MIT
 
-
-## Contributing
-
-Contributions, suggestions, and issue reports are very welcome! Please open an issue or PR.
-
 ## Acknowledgments
 
-This project was inspired by mathematical exploration and language experimentation, with special thanks to OpenAI's ChatGPT (Novix) and the ZED editor plus Claude4 Sonnet (Zeddy) for AI-assisted design and coding.
+This project was inspired by mathematical exploration and language experimentation, with special thanks to OpenAI's ChatGPT and Claude for AI-assisted design and development of the parsing infrastructure.

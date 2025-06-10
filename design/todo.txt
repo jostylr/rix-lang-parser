@@ -1,181 +1,221 @@
-# Language Implementation Prompts for Zeddy (Pratt Parser, JavaScript)
+# RiX Parser & Tokenizer Development TODO
 
-A sequence of detailed prompts for building your custom mathematical language in JavaScript using a Pratt parser. Each step is modular and can be given to an LLM-based coding assistant (like Zeddy or ChatGPT).
-
----
-
-## 1. Tokenizer / Lexer
-
-**Prompt:**
-
-Write a JavaScript function to tokenize a mathematical expression language supporting:
-
-* Words: Basically any letters. Not underscores or digits; they have separate menaings. Any unicode character that is not in one of the categories below or a space-like character. This includes excluding digits, math symbols, container symbols, delimiters, quotes. Basically, anything printed on a keyboard that is not a letter should be excluded.
-* Numbers (including decimals, scientific notation, intervals like 1:2, mixed numbers like 1..3/4). It should support negative numbers. It should support the E notation, such as 1.23E-4. This should also support decimals with a repeating part. Namely,  1.23#56 would indicate a repeating pattern of 56 so 1.2356565656...  Interval notation should be able to support all of that such as 1.1#3E7:2.344#0E8. Also 2.34 is fine as well. It can also be mixed with 1..3/4:1.23 being a mixed number in interval notation. A leading minus sign is fine.
-* Operators: +, -, *, /, ^, **, :=, ?=, :=:, :<:, :>:, :<=:, :>=:, =, <, >, <=, >=, :, _, |:, ||, |>, |?,    There will probably be more so make sure it is easy to add.
-* Delimiters: semi-colon and comma, maybe more
-* Containers: (, ), [, ], {, }
-* Quotes: double-quote and backtick. The single quote is to be handled differently. The backtick should support escaping characters like \n, \t, \r, \uXXXX, \xXX, \0, \', \", \\, \u{XXXXXX}, \u{XXXXXX} etc. The backtick should support interpolation like ${expression}. String literals are enclosed by N consecutive double quotes (`"`, `""`, `"""`, etc.), for any N >= 1.The string starts after the opening N quotes and ends at the next N consecutive double quotes. Any sequence of M consecutive double quotes where M < N is preserved literally within the string.No run of double quotes is collapsed or reduced inside the string—**all are kept as written**. If there are spaces between the opening delimiter and the first non-space character, or between the last non-space character and the closing delimiter,one space is trimmed from the resulting string if the character is a double-quote.
-
-
-The tokenizer should return an array of tokens with type and value.
+This document outlines the development roadmap for the RiX Language Parser & Tokenizer library. As a focused parsing library, this repository handles tokenization and AST generation, with evaluation and REPL functionality provided by separate repositories.
 
 ---
 
-## 2. Pratt Parser Core
+## Current Status: Core Implementation Complete ✅
 
-**Prompt:**
+### Completed Features
 
-Implement a modular Pratt parser in JavaScript. The parser should:
+#### Tokenizer (✅ Complete)
+- ✅ All number formats per specification
+- ✅ Unicode identifier support with system/user distinction
+- ✅ Comprehensive operator tokenization (50+ symbols)
+- ✅ Flexible string systems (N-delimiter quotes, backticks, comments)
+- ✅ Maximal munch symbol matching
+- ✅ Position tracking for error reporting
+- ✅ Comprehensive test coverage (129 tests)
 
-* Register tokens and their nud/led functions and precedence levels
-* Parse arithmetic expressions (+, -, \*, /, parentheses, numbers, variables)
-* Produce an AST (abstract syntax tree) as output
-* Be extensible for new syntax and operators
-
----
-
-## 3. AST Node Types & Basic Evaluation
-
-**Prompt:**
-
-Write classes for AST nodes: Literal, Variable, BinaryOp, UnaryOp, Assignment, FunctionCall, etc.
-Implement an evaluator that walks the AST, supports variable assignment and evaluation, and can be extended for intervals, functions, and blocks.
-
----
-
-## 4. Arithmetic Extensions: Intervals, Mixed Numbers, and Rational Support
-
-**Prompt:**
-
-Extend the parser and evaluator to support:
-
-* Interval notation: a\:b
-* Mixed number notation: 1..3/4
-* Interval arithmetic (+, -, \*, /) using a rational interval arithmetic library
-* All numbers default to rationals (use previously built rational/interval library)
-  Ensure the AST and evaluation engine are updated accordingly.
+#### Parser (✅ Core Complete)
+- ✅ Pratt parser with full operator precedence
+- ✅ Function definitions (multiple styles)
+- ✅ Pattern matching functions
+- ✅ Array generators and sequence notation
+- ✅ Matrix and tensor parsing
+- ✅ Code blocks and metadata annotations
+- ✅ Pipe operations and functional constructs
+- ✅ Symbolic calculus notation
+- ✅ Comprehensive test coverage (185 tests)
 
 ---
 
-## 5. Units and Algebraic Extension
+## Immediate Priorities (v0.2.0)
 
-**Prompt:**
+### 1. Documentation & Examples 📚
+- [ ] Complete API documentation with JSDoc
+- [ ] Expand example collection
+- [ ] Performance benchmarking documentation
+- [ ] Integration guide for external evaluators
+- [ ] Browser usage examples
 
-Extend the parser and evaluator to support:
+### 2. Parser Enhancements 🔧
+- [ ] Improve error recovery and suggestions
+- [ ] Add source map generation for debugging
+- [ ] Optimize parsing performance for large expressions
+- [ ] Enhanced position tracking for complex constructs
 
-* Number literals with units (e.g., 3.2~~m~~, 10~~m/s~~)
-* Arithmetic on units: addition/subtraction with compatible units, multiplication/division of units, unit simplification, and error on incompatible unit arithmetic
-* Unit conversion syntax (e.g., x\~\~mi/m\~)
-* Algebraic extensions: e.g., `i` for complex numbers, sqrt2 as a primitive, general algebraic numbers as extensions (attach rules for new primitives)
-* Storage of unit and algebraic rules as metadata on numbers and operations
-
----
-
-## 6. Assignments and Equations/Inequalities
-
-**Prompt:**
-
-Add support for assignment/comparison operators:
-
-* := for assignment
-* \== for boolean equality
-* :=: for equation to solve
-* :<:, :>:, :<=:, :>=: for inequalities to solve
-  Parser should distinguish these and produce the correct AST node.
+### 3. Tokenizer Refinements 🎯
+- [ ] Edge case handling for complex number formats
+- [ ] Performance optimization for large inputs
+- [ ] Better error messages for malformed tokens
+- [ ] Unicode normalization improvements
 
 ---
 
-## 7. Function Definitions and Calls
+## Medium Term Goals (v0.3.0)
 
-**Prompt:**
+### 1. Advanced Language Features 🚀
+- [ ] Incremental parsing for IDE integration
+- [ ] Syntax highlighting token classification
+- [ ] AST transformation utilities
+- [ ] Custom operator definition support
 
-Extend the parser and evaluator to support:
+### 2. Developer Experience 💻
+- [ ] TypeScript type definitions
+- [ ] VS Code language server integration
+- [ ] Debugging utilities and AST visualization
+- [ ] Parser plugin architecture
 
-* Function definitions with syntax: `f := (x, n:=5) -> x^n + 1`
-* Named and optional arguments
-* Function calls: `f(2, 3; n:=5)`
-* Pattern-matching function definitions
-* Functions as first-class values, assignable and passable
-
----
-
-## 8. Literals and Collections
-
-**Prompt:**
-
-Add parsing and evaluation support for:
-
-* Arrays: `[1,2,3]`
-* Matrices: `[1,2;3,4]`
-* Sets: `{3, 4, 5}`
-* Maps/objects: `{a := 4, bc := 5}`
-* Tuples: `(3, 5, 6)`
-* Metadata on collections: `[fun, n:=5]`
+### 3. Performance & Reliability 📊
+- [ ] Memory usage optimization
+- [ ] Parallel parsing for large expressions
+- [ ] Fuzzing test suite
+- [ ] Performance regression tests
 
 ---
 
-## 9. Piping and Functional Operators
+## Long Term Vision (v1.0.0)
 
-**Prompt:**
+### 1. Ecosystem Integration 🌐
+- [ ] Standard AST format for RiX ecosystem
+- [ ] Plugin system for domain-specific extensions
+- [ ] Integration with mathematical computing libraries
+- [ ] Browser WebAssembly compilation
 
-Implement piping syntax and semantics:
+### 2. Advanced Features 🔬
+- [ ] Syntax macros and compile-time expansion
+- [ ] Custom precedence definition
+- [ ] Domain-specific language embedding
+- [ ] Advanced error recovery strategies
 
-* `|>` for feeding arrays as function arguments
-* `|>>` for map
-* `|>?` for filter
-* `|>:` for reduce
-  Ensure the evaluator correctly applies these to arrays, sets, sequences, and other constructs. Support all sequence literal operators (`|+`, `|*`, `|:`, `|>`, `|?`, etc).
-
----
-
-## 10. Blocks, Statements, and Code Control
-
-**Prompt:**
-
-Implement code blocks:
-
-* `{{ ... }}` for assignable/multi-statement code blocks
-* Support code blocks as function arguments, in `If`/`Else`, and in assignment
-* Semicolon (;) as statement terminator
-* Handle block scope and result as last statement's value
-* Support passing and returning code blocks
+### 3. Tooling & Infrastructure 🛠️
+- [ ] AST diff and merge utilities
+- [ ] Code formatting and style checking
+- [ ] Automatic documentation generation
+- [ ] Performance profiling tools
 
 ---
 
-## 11. Error Handling and Metadata
+## Out of Scope (Separate Repositories)
 
-**Prompt:**
+The following features are intentionally excluded from this parser library:
 
-Implement error handling:
+### Evaluation Engine ❌
+- Mathematical expression evaluation
+- Real number oracles implementation
+- Unit arithmetic and conversion
+- Rational number computation
+- Complex number operations
 
-* Return null or throw error as appropriate
-* Allow try/catch block constructs
-* Support warnings stack for recoverable errors
-* Enable attaching and accessing metadata to objects/functions using `.property` and `_key` notation
+### Interactive Systems ❌
+- REPL implementation
+- Command-line interface
+- Interactive debugging
+- Live expression evaluation
 
----
-
-## 12. Real Numbers as Oracles
-
-**Prompt:**
-
-Implement support for real numbers as oracles:
-
-* Define an oracle as a function or object that, given an interval and tolerance, returns (success, interval) as specified in the mathematical oracle definition
-* Oracles should be able to represent rationals, algebraic numbers, and other real numbers
-* Arithmetic operations on oracles should yield new oracles (addition, multiplication, etc.)
-* Metadata for the oracle should include known "Yes" intervals and approximation history
-* Evaluation and conversion from oracle to interval/rational with specified tolerance
+### Visualization ❌
+- AST visualization tools
+- Mathematical rendering
+- Graph plotting
+- Expression trees display
 
 ---
 
-## 13. Testing, Debugging, and Extensibility
+## Contributing Guidelines
 
-**Prompt:**
+### Parser Enhancements
+- Focus on AST generation and structure
+- Maintain backward compatibility
+- Add comprehensive test coverage
+- Update documentation
 
-Build a suite of tests and debug utilities for the parser and evaluator:
+### New Language Features
+- Follow existing precedence patterns
+- Ensure tokenizer/parser consistency
+- Provide clear AST node definitions
+- Include parsing examples
 
-* Unit tests for every construct (arithmetic, intervals, assignments, functions, piping, blocks, units, oracles, etc.)
-* Debug/trace output for stepwise parsing and evaluation
-* Easy way to add new tokens/operators, AST node types, and evaluation logic for future extensions
+### Performance Improvements
+- Benchmark before and after changes
+- Consider memory usage impact
+- Maintain parsing correctness
+- Document performance characteristics
+
+---
+
+## Testing Strategy
+
+### Current Coverage
+- ✅ 314+ tests across tokenizer and parser
+- ✅ Specification compliance verification
+- ✅ Edge case and error condition testing
+- ✅ Position tracking validation
+
+### Expansion Areas
+- [ ] Performance benchmarks
+- [ ] Memory usage tests
+- [ ] Browser compatibility testing
+- [ ] Large input stress testing
+- [ ] Fuzzing and property-based testing
+
+---
+
+## Release Planning
+
+### v0.1.x (Current - Maintenance)
+- Bug fixes and documentation improvements
+- Minor performance optimizations
+- Test coverage expansion
+
+### v0.2.x (Next - Enhancement)
+- Advanced error handling
+- Developer tooling improvements
+- Performance optimizations
+
+### v0.3.x (Future - Advanced Features)
+- Incremental parsing
+- Plugin architecture
+- TypeScript integration
+
+### v1.0.x (Stable - Production Ready)
+- Complete feature set
+- Stable API
+- Comprehensive documentation
+- Production performance
+
+---
+
+## Architecture Principles
+
+### Design Goals
+1. **Focused Scope**: Parsing only, no evaluation
+2. **High Performance**: Efficient for large expressions
+3. **Extensibility**: Easy to add new language features
+4. **Reliability**: Robust error handling and recovery
+5. **Integration**: Clean API for external systems
+
+### Code Quality Standards
+- Comprehensive test coverage (>95%)
+- Clear documentation for all public APIs
+- Performance benchmarks for core operations
+- Consistent error handling patterns
+- Memory-efficient implementations
+
+---
+
+## Community & Ecosystem
+
+### Related Projects
+- **rix-language-evaluator**: Mathematical computation engine
+- **rix-language-repl**: Interactive environment
+- **rix-language-browser**: Web-based interface
+- **rix-language-vscode**: Editor integration
+
+### Integration Points
+- Standard AST format for interoperability
+- Plugin architecture for extensions
+- Performance monitoring and optimization
+- Cross-project testing and validation
+
+This roadmap ensures the RiX Parser & Tokenizer remains focused on its core competency while providing a solid foundation for the broader RiX language ecosystem.

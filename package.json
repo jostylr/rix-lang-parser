@@ -1,8 +1,57 @@
 {
   "name": "rix-language-parser",
   "version": "0.1.0",
+  "description": "Comprehensive tokenizer and parser for the RiX (Rational Interval Expression Language) mathematical expression language",
   "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": {
+      "import": "./index.js"
+    },
+    "./tokenizer": {
+      "import": "./src/tokenizer.js"
+    },
+    "./parser": {
+      "import": "./src/parser.js"
+    }
+  },
   "scripts": {
-    "test": "bun test"
+    "test": "bun test",
+    "test:tokenizer": "bun test tests/tokenizer.test.js",
+    "test:parser": "bun test tests/parser.test.js",
+    "test:generators": "bun test tests/array-generators*.test.js"
+  },
+  "keywords": [
+    "parser",
+    "tokenizer",
+    "mathematical",
+    "expression",
+    "language",
+    "AST",
+    "pratt-parser",
+    "interval-arithmetic",
+    "rational-numbers",
+    "mathematical-notation"
+  ],
+  "author": "RiX Language Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rix-lang/parser.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rix-lang/parser/issues"
+  },
+  "homepage": "https://github.com/rix-lang/parser#readme",
+  "files": [
+    "src/",
+    "index.js",
+    "readme.md",
+    "design/",
+    "docs/",
+    "rix-logo.png"
+  ],
+  "engines": {
+    "node": ">=16.0.0"
   }
 }
