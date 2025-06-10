@@ -1202,7 +1202,7 @@ describe("Math Oracle Tokenizer", () => {
 
     describe("pipe operators", () => {
       test("pipe operators", () => {
-        const tokens = tokenize("||> |>> |>: |>? |+ |* |: |; |^ |?");
+        const tokens = tokenize("||> |>> |>: |>? |+ |* |: |; |^ |^: |?");
         expect(tokens).toEqual(
           withEnd([
             { type: "Symbol", original: "||>", value: "||>", pos: [0, 0, 3] },
@@ -1219,7 +1219,8 @@ describe("Math Oracle Tokenizer", () => {
             { type: "Symbol", original: " |:", value: "|:", pos: [21, 22, 24] },
             { type: "Symbol", original: " |;", value: "|;", pos: [24, 25, 27] },
             { type: "Symbol", original: " |^", value: "|^", pos: [27, 28, 30] },
-            { type: "Symbol", original: " |?", value: "|?", pos: [30, 31, 33] },
+            { type: "Symbol", original: " |^:", value: "|^:", pos: [30, 31, 34] },
+            { type: "Symbol", original: " |?", value: "|?", pos: [34, 35, 37] },
           ]),
         );
       });

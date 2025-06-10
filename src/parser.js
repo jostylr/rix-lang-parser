@@ -46,6 +46,7 @@ const SYMBOL_TABLE = {
     '|:': { precedence: PRECEDENCE.PIPE, associativity: 'left', type: 'infix' },
     '|;': { precedence: PRECEDENCE.PIPE, associativity: 'left', type: 'infix' },
     '|^': { precedence: PRECEDENCE.PIPE, associativity: 'left', type: 'infix' },
+    '|^:': { precedence: PRECEDENCE.PIPE, associativity: 'left', type: 'infix' },
     '|?': { precedence: PRECEDENCE.PIPE, associativity: 'left', type: 'infix' },
     
     // Equality operators
@@ -195,49 +196,8 @@ class Parser {
 
     // Parse expression with given minimum precedence
     parseExpression(minPrec = 0) {
-        let left = this.parsePrefix();
-
-        while (this.current.type !== 'End') {
-            // Check for statement terminators
-            if (this.current.value === ';' || this.current.value === ',' || 
-                this.current.value === ')' || this.current.value === ']' || 
-                this.current.value === '}' || this.current.value === '}}' || 
-                this.current.type === 'SemicolonSequence') {
-                break;
-            }
-
-            // Treat comments as expression terminators
-            if (this.current.type === 'String' && this.current.kind === 'comment') {
-                break;
-            }
-
-            // Special case for function calls
-            if (this.current.value === '(' && (left.type === 'UserIdentifier' || left.type === 'SystemIdentifier')) {
-                left = this.parseInfix(left, { precedence: PRECEDENCE.POSTFIX, type: 'postfix' });
-                continue;
-            }
-
-            // Special case for postfix derivatives (single quotes after function/identifier)
-            if (this.current.value === "'" && (left.type === 'UserIdentifier' || left.type === 'SystemIdentifier' || 
-                left.type === 'FunctionCall' || left.type === 'PropertyAccess' || left.type === 'Derivative' || left.type === 'Integral')) {
-                left = this.parseDerivative(left);
-                continue;
-            }
-
-            const symbolInfo = this.getSymbolInfo(this.current);
-            
-            if (symbolInfo.precedence < minPrec) {
-                break;
-            }
-
-            if (symbolInfo.type === 'statement' || symbolInfo.type === 'separator') {
-                break;
-            }
-
-            left = this.parseInfix(left, symbolInfo);
-        }
-
-        return left;
+        const left = this.parsePrefix();
+        return this.parseExpressionRec(left, minPrec, false);
     }
 
     // Parse prefix expressions (literals, unary operators, grouping)
@@ -774,6 +734,158 @@ class Parser {
         return result;
     }
     
+    parseGeneratorChain() {
+        // Parse initial expression or start with null if we begin with a generator operator
+        let start = null;
+        const operators = [];
+        
+        // If current token is not a generator operator, parse the start value
+        if (!this.isGeneratorOperator(this.current.value)) {
+            // Parse the start value but don't let it consume generator operators
+            const savedPos = this.pos;
+            try {
+                start = this.parseExpressionUntilGenerator();
+            } catch (e) {
+                // If parsing fails, restore position and treat as no start value
+                this.pos = savedPos;
+                start = null;
+            }
+        }
+        
+        // Parse chain of generator operators
+        while (this.isGeneratorOperator(this.current.value)) {
+            const operator = this.current;
+            this.advance();
+            
+            // Parse the operand with higher precedence to avoid consuming subsequent operators
+            const operand = this.parseExpression(PRECEDENCE.PIPE + 1);
+            
+            const operatorNode = this.createGeneratorOperatorNode(operator.value, operand, operator);
+            operators.push(operatorNode);
+        }
+        
+        if (operators.length === 0) {
+            return start; // Not actually a generator chain
+        }
+        
+        return this.createNode('GeneratorChain', {
+            start: start,
+            operators: operators,
+            pos: start ? start.pos : operators[0].pos,
+            original: start ? start.original : operators[0].original
+        });
+    }
+    
+    parseExpressionUntilGenerator() {
+        // Parse just the prefix expression and return it
+        // Don't parse infix operations that might include generators
+        return this.parsePrefix();
+    }
+    
+    parseExpressionRec(left, minPrec, stopAtGenerators = false) {
+        while (this.current.type !== 'End') {
+            // Check for statement terminators
+            if (this.current.value === ';' || this.current.value === ',' || 
+                this.current.value === ')' || this.current.value === ']' || 
+                this.current.value === '}' || this.current.value === '}}' || 
+                this.current.type === 'SemicolonSequence') {
+                break;
+            }
+
+            // Treat comments as expression terminators
+            if (this.current.type === 'String' && this.current.kind === 'comment') {
+                break;
+            }
+
+            // Special case for function calls
+            if (this.current.value === '(' && (left.type === 'UserIdentifier' || left.type === 'SystemIdentifier')) {
+                left = this.parseInfix(left, { precedence: PRECEDENCE.POSTFIX, type: 'postfix' });
+                continue;
+            }
+
+            // Special case for postfix derivatives (single quotes after function/identifier)
+            if (this.current.value === "'" && (left.type === 'UserIdentifier' || left.type === 'SystemIdentifier' || 
+                left.type === 'FunctionCall' || left.type === 'PropertyAccess' || left.type === 'Derivative' || left.type === 'Integral')) {
+                left = this.parseDerivative(left);
+                continue;
+            }
+
+            const symbolInfo = this.getSymbolInfo(this.current);
+            
+            if (!symbolInfo || symbolInfo.precedence < minPrec) {
+                break;
+            }
+
+            if (symbolInfo.type === 'statement' || symbolInfo.type === 'separator') {
+                break;
+            }
+            
+            // Stop at generator operators if flag is set
+            if (stopAtGenerators && this.isGeneratorOperator(this.current.value)) {
+                break;
+            }
+            
+            left = this.parseInfix(left, symbolInfo);
+        }
+        
+        return left;
+    }
+    
+    isGeneratorOperator(value) {
+        return ['|+', '|*', '|:', '|?', '|^', '|^:'].includes(value);
+    }
+    
+    createGeneratorOperatorNode(operator, operand, token) {
+        const typeMap = {
+            '|+': 'GeneratorAdd',
+            '|*': 'GeneratorMultiply', 
+            '|:': 'GeneratorFunction',
+            '|?': 'GeneratorFilter',
+            '|^': 'GeneratorLimit',
+            '|^:': 'GeneratorLazyLimit'
+        };
+        
+        return this.createNode(typeMap[operator], {
+            operator: operator,
+            operand: operand,
+            pos: token.pos,
+            original: token.original
+        });
+    }
+    
+    convertBinaryChainToGeneratorChain(binaryOp) {
+        // Convert a binary operation chain with generator operators to GeneratorChain
+        const operators = [];
+        let current = binaryOp;
+        let start = null;
+        
+        // Traverse the binary operation tree to extract generator operators
+        while (current && current.type === 'BinaryOperation' && this.isGeneratorOperator(current.operator)) {
+            // Add this operator to the front of the list (since we're traversing backwards)
+            const operatorNode = this.createGeneratorOperatorNode(current.operator, current.right, current);
+            operators.unshift(operatorNode);
+            
+            current = current.left;
+        }
+        
+        // The remaining left side is the start value (unless it's also a generator operation)
+        if (current && current.type === 'BinaryOperation' && this.isGeneratorOperator(current.operator)) {
+            // Recursively convert nested generator chains
+            const nestedChain = this.convertBinaryChainToGeneratorChain(current);
+            start = nestedChain.start;
+            operators.unshift(...nestedChain.operators);
+        } else {
+            start = current;
+        }
+        
+        return this.createNode('GeneratorChain', {
+            start: start,
+            operators: operators,
+            pos: binaryOp.pos,
+            original: binaryOp.original
+        });
+    }
+
     parseMatrixOrArray(startToken) {
         const elements = [];
         let hasMetadata = false;
@@ -799,7 +911,20 @@ class Parser {
                     continue;
                 }
                 
-                const element = this.parseExpression(0);
+                // Parse element - check for generator chains
+                let element;
+                if (this.isGeneratorOperator(this.current.value)) {
+                    // Start with generator operator (no initial value)
+                    element = this.parseGeneratorChain();
+                } else {
+                    // Parse expression normally first
+                    element = this.parseExpression(0);
+                    
+                    // Check if this element is actually a generator chain (parsed as binary operations)
+                    if (element.type === 'BinaryOperation' && this.isGeneratorOperator(element.operator)) {
+                        element = this.convertBinaryChainToGeneratorChain(element);
+                    }
+                }
                 
                 // Check if this is a metadata assignment (key := value)
                 if (element.type === 'BinaryOperation' && element.operator === ':=') {
