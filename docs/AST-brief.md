@@ -516,6 +516,16 @@ This document provides a comprehensive reference for all token types generated b
 }
 ```
 
+### TernaryOperation
+```javascript
+{
+  condition: ASTNode,     // Boolean condition expression
+  trueExpression: ASTNode, // Expression evaluated if condition is true
+  falseExpression: ASTNode, // Expression evaluated if condition is false
+  original: string        // Combined original text
+}
+```
+
 ### EmbeddedLanguage
 ```javascript
 {

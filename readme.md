@@ -42,6 +42,7 @@ A comprehensive tokenizer and parser for the RiX (Rational Interval Expression L
   - Pattern matching with metadata
   - Postfix operators (`@`, `?`, `()`) for precision, queries, and universal calls
   - Operator symbols as functions (`+(a,b,c)`, `*(x,y,z)`)
+  - Ternary operator (`?? ?:`) for conditional expressions
 
 ---
 
@@ -65,6 +66,7 @@ PI@(1e-10)                      // Get PI with precision 1e-10
 result?(3.14:3.15)              // Check if result is in interval
 3(4)                            // Universal call: 3 * 4
 +(2, 3, 5)                      // Addition operator as function
+x > 0 ?? x ?: -x                // Ternary operator: condition ?? true ?: false
 ```
 
 ### Tokenization Features
@@ -176,6 +178,7 @@ The parser generates various AST node types:
 - **GeneratorChain:** `{ type: 'GeneratorChain', start: ..., operators: [...] }`
 - **Number:** `{ type: 'Number', value: '3.14', format: 'decimal' }`
 - **Identifier:** `{ type: 'UserIdentifier' | 'SystemIdentifier', name: 'x' }`
+- **TernaryOperation:** `{ type: 'TernaryOperation', condition: ..., trueExpression: ..., falseExpression: ... }`
 - **At:** `{ type: 'At', target: ..., arg: ... }`
 - **Ask:** `{ type: 'Ask', target: ..., arg: ... }`
 

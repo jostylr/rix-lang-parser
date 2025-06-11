@@ -3,6 +3,8 @@
  * Implements a Pratt parser for the RiX mathematical expression language
  */
 
+import { tokenize } from './tokenizer.js';
+
 // Precedence levels (higher numbers bind tighter)
 const PRECEDENCE = {
     STATEMENT: 0,
@@ -65,7 +67,7 @@ const SYMBOL_TABLE = {
     '?<=': { precedence: PRECEDENCE.COMPARISON, associativity: 'left', type: 'infix' },
     '?>=': { precedence: PRECEDENCE.COMPARISON, associativity: 'left', type: 'infix' },
     
-    // Interval operators
+    // Interval operators / ternary colon
     ':': { precedence: PRECEDENCE.INTERVAL, associativity: 'left', type: 'infix' },
     
     // Interval stepping
@@ -110,6 +112,10 @@ const SYMBOL_TABLE = {
     
     // Condition operator
     '?': { precedence: PRECEDENCE.CONDITION, associativity: 'left', type: 'infix' },
+    
+    // Ternary operator
+    '??': { precedence: PRECEDENCE.CONDITION, associativity: 'right', type: 'infix' },
+    '?:': { precedence: PRECEDENCE.CONDITION, associativity: 'right', type: 'infix' },
     
     // Property access
     '.': { precedence: PRECEDENCE.PROPERTY, associativity: 'left', type: 'infix' },
@@ -610,6 +616,27 @@ class Parser {
             return this.createNode('InfiniteSequence', {
                 start: left,
                 step: right,
+                pos: left.pos,
+                original: left.original + operator.original
+            });
+        } else if (operator.value === '??') {
+            // Ternary operator: condition ?? trueExpr ?: falseExpr
+            // Parse true expression with higher precedence to prevent ?: consumption
+            const trueExpr = this.parseExpression(PRECEDENCE.CONDITION + 5);
+            
+            if (this.current.value !== '?:') {
+                this.error('Expected "?:" in ternary operator after true expression');
+            }
+            
+            this.advance(); // consume '?:'
+            
+            // Parse false expression with right-associative precedence
+            const falseExpr = this.parseExpression(rightPrec);
+            
+            return this.createNode('TernaryOperation', {
+                condition: left,
+                trueExpression: trueExpr,
+                falseExpression: falseExpr,
                 pos: left.pos,
                 original: left.original + operator.original
             });
@@ -1934,7 +1961,13 @@ class Parser {
 }
 
 // Main parse function
-export function parse(tokens, systemLookup) {
+export function parse(input, systemLookup) {
+    let tokens;
+    if (typeof input === 'string') {
+        tokens = tokenize(input);
+    } else {
+        tokens = input;
+    }
     const parser = new Parser(tokens, systemLookup);
     return parser.parse();
 }
