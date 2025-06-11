@@ -33,7 +33,8 @@ This document provides a comprehensive reference for all token types generated b
 - Pipe operations: `|>`, `|>>`, `|>?`, `|>:`
 - Array generators: `|+`, `|*`, `|:`, `|^`
 - Brackets: `(`, `)`, `[`, `]`, `{`, `}`
-- Punctuation: `,`, `;`, `.`, `_`, `@`
+- Punctuation: `,`, `;`, `.`, `_`
+- Postfix operators: `@`, `?` (when followed by parentheses)
 
 ### String
 **Purpose:** Represents quoted literals, backticks, and comments  
@@ -42,6 +43,14 @@ This document provides a comprehensive reference for all token types generated b
 - Backticks: `` `code` ``, ``` ``nested`` ```
 - Comments: `# line comment`, `/* block */`, `/** doc **/`
 - Unit changes: `~~mi/m~`
+
+### Postfix Operators
+**Purpose:** Represents postfix operations for precision, queries, and function calls
+**Syntax:**
+- AT operator: `expr@(arg)` - precision/metadata access
+- ASK operator: `expr?(arg)` - membership/query testing  
+- Enhanced CALL: `expr(args)` - universal function call on any expression
+- Operator functions: `+(a,b,c)`, `*(x,y)` - operators as variadic functions
 
 ### PlaceHolder
 **Purpose:** Represents numbered placeholders for parameter positioning  
@@ -489,6 +498,24 @@ This document provides a comprehensive reference for all token types generated b
 }
 ```
 
+### At
+```javascript
+{
+  target: ASTNode,    // Expression being queried for precision/metadata
+  arg: ASTNode,       // Precision/metadata parameter
+  original: string    // Combined original text
+}
+```
+
+### Ask
+```javascript
+{
+  target: ASTNode,    // Expression being queried for membership/properties
+  arg: ASTNode,       // Query parameter (range, condition, etc.)
+  original: string    // Combined original text
+}
+```
+
 ### EmbeddedLanguage
 ```javascript
 {
@@ -533,3 +560,51 @@ All AST nodes include these base properties:
 - For tokens: includes any leading whitespace consumed during tokenization
 - For AST nodes: contains the combined original text of all constituent tokens
 - Preserves exact source representation for error reporting and code transformation
+
+## Section 4: Postfix Operators
+
+### AT Operator (@)
+**Purpose:** Access precision, tolerance, or metadata properties of mathematical objects
+**Syntax:** `expression@(parameter)`
+**Precedence:** 120 (POSTFIX - highest precedence)
+**Examples:**
+- `PI@(1e-10)` - Get PI with precision 1e-10
+- `result@(tolerance)` - Apply tolerance to result
+- `(1/3)@(epsilon)` - Get rational with specified precision
+
+### ASK Operator (?)
+**Purpose:** Query membership, bounds, or boolean properties of mathematical objects
+**Syntax:** `expression?(parameter)`
+**Precedence:** 120 (POSTFIX - highest precedence)
+**Note:** Must be followed by parentheses to distinguish from infix `?` operator
+**Examples:**
+- `PI?(3.14:3.15)` - Check if PI is in interval [3.14, 3.15]
+- `result?(bounds)` - Test if result satisfies bounds
+- `interval?(x)` - Query if x is in interval
+
+### Enhanced CALL Operator (())
+**Purpose:** Universal function call that works on any expression, not just identifiers
+**Syntax:** `expression(arguments)`
+**Precedence:** 120 (POSTFIX - highest precedence)
+**Examples:**
+- `3(4)` - Equivalent to `3 * 4` (scalar multiplication)
+- `(2,3)(4,5)` - Tuple/vector operations
+- `matrix(vector)` - Matrix-vector multiplication
+- `f(x)(y)` - Chained function calls
+
+### Operators as Functions
+**Purpose:** Mathematical operators can be used as function identifiers
+**Syntax:** `operator(arg1, arg2, ...)`
+**Examples:**
+- `+(2, 3, 5)` - Addition as variadic function: 2 + 3 + 5
+- `*(a, b, c)` - Multiplication as function: a * b * c
+- `<(x, y)` - Comparison as function: x < y
+- `=(a, b)` - Equality as function: a = b
+
+### Chaining Postfix Operators
+**Purpose:** Multiple postfix operators can be chained for complex operations
+**Precedence:** All postfix operators have same precedence and are left-associative
+**Examples:**
+- `PI@(1e-6)?(3.14:3.15)` - Get precise PI then check range
+- `f(x)@(eps)?(bounds)` - Call function, apply precision, check bounds
+- `result?(test)@(meta)` - Query result then access metadata

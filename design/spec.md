@@ -475,6 +475,44 @@ sqrt2_oracle := [
 
   * Pattern-matching and function arrays can carry metadata shared by all cases, unless locally overridden.
 
+### Postfix Operators and Enhanced Function Calls
+
+RiX provides three postfix operators with the highest precedence for precision control, queries, and universal function calls:
+
+* **AT operator (`@`):** Access precision, tolerance, or metadata properties
+
+  * `PI@(1e-10)` — Get PI with precision 1e-10
+  * `result@(tolerance)` — Apply tolerance to result
+  * `(1/3)@(epsilon)` — Get rational with specified precision
+
+* **ASK operator (`?`):** Query membership, bounds, or boolean properties
+
+  * `PI?(3.14:3.15)` — Check if PI is in interval [3.14, 3.15]
+  * `result?(bounds)` — Test if result satisfies bounds
+  * `interval?(x)` — Query if x is in interval
+  * **Note:** Must be followed by parentheses to distinguish from infix `?`
+
+* **Enhanced CALL operator (`()`):** Universal function call on any expression
+
+  * `3(4)` — Equivalent to `3 * 4` (scalar multiplication)
+  * `(2,3)(4,5)` — Tuple/vector operations
+  * `matrix(vector)` — Matrix-vector multiplication
+  * `f(x)(y)` — Chained function calls
+
+* **Operators as Functions:** Mathematical operators can be used as function identifiers
+
+  * `+(2, 3, 5)` — Addition as variadic function: 2 + 3 + 5
+  * `*(a, b, c)` — Multiplication as function: a * b * c
+  * `<(x, y)` — Comparison as function: x < y
+  * `=(a, b)` — Equality as function: a = b
+
+* **Chaining:** Multiple postfix operators can be combined
+
+  * `PI@(1e-6)?(3.14:3.15)` — Get precise PI then check range
+  * `f(x)@(eps)?(bounds)` — Call function, apply precision, check bounds
+
+* **Precedence:** All postfix operators have the highest precedence (120) and are left-associative
+
 ---
 
 ## 6. Pattern Matching and Case Functions

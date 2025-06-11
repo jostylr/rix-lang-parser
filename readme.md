@@ -11,7 +11,7 @@ A comprehensive tokenizer and parser for the RiX (Rational Interval Expression L
   - Numbers: integers, decimals, rationals, mixed numbers, intervals, scientific notation
   - Strings: flexible quote systems with N-delimiter support for embedding
   - Comments: single-line and multi-level block comments
-  - Operators: comprehensive mathematical and functional operators
+  - **Operators:** comprehensive mathematical and functional operators with postfix support
   - Identifiers: Unicode support with system/user distinction
 
 - **Comprehensive Parsing:**
@@ -23,6 +23,8 @@ A comprehensive tokenizer and parser for the RiX (Rational Interval Expression L
   - Metadata and property annotations
   - Symbolic calculus notation (derivatives, integrals)
   - Pipe operations and functional constructs
+  - Postfix operators for precision control and queries
+  - Operators as functions with universal call syntax
 
 - **Rich Mathematical Notation:**
   - Interval arithmetic (`2:5`, `1.5:2.7`)
@@ -38,6 +40,8 @@ A comprehensive tokenizer and parser for the RiX (Rational Interval Expression L
   - Comprehensive pipe operators (`|>`, `|>>`, `|>?`, `|>:`)
   - Array generators (`|+`, `|*`, `|:`, `|^`)
   - Pattern matching with metadata
+  - Postfix operators (`@`, `?`, `()`) for precision, queries, and universal calls
+  - Operator symbols as functions (`+(a,b,c)`, `*(x,y,z)`)
 
 ---
 
@@ -57,6 +61,10 @@ a:b:%4                          // Pick 4 random points in [a,b]
 SIN(x; n:=4)                    // System function with named argument
 x ?= 3                          // Boolean test: is x equal to 3?
 x^2 :<: 4                       // Inequality to solve
+PI@(1e-10)                      // Get PI with precision 1e-10
+result?(3.14:3.15)              // Check if result is in interval
+3(4)                            // Universal call: 3 * 4
++(2, 3, 5)                      // Addition operator as function
 ```
 
 ### Tokenization Features
@@ -68,9 +76,11 @@ x^2 :<: 4                       // Inequality to solve
 
 ### Parsing Features
 - **AST Generation:** Complete Abstract Syntax Tree generation for all language constructs
-- **Operator Precedence:** Full precedence table with proper associativity
+- **Operator Precedence:** Full precedence table with proper associativity including postfix operators
 - **Error Handling:** Comprehensive error reporting with position information
 - **Extensibility:** Modular design for adding new operators and constructs
+- **Universal Function Calls:** Any expression can be called as a function
+- **Operator Functions:** Mathematical operators can be used as variadic functions
 
 ---
 
@@ -120,6 +130,12 @@ const matrix = parse('[[1, 2; 3, 4]]');
 // Symbolic calculus
 const derivative = parse("f'(x)");
 const integral = parse("'f(x)");
+
+// Postfix operators
+const precision = parse("PI@(1e-10)");
+const query = parse("result?(bounds)");
+const universalCall = parse("3(4)");
+const operatorFunction = parse("+(1, 2, 3)");
 ```
 
 ## API Reference
@@ -160,6 +176,8 @@ The parser generates various AST node types:
 - **GeneratorChain:** `{ type: 'GeneratorChain', start: ..., operators: [...] }`
 - **Number:** `{ type: 'Number', value: '3.14', format: 'decimal' }`
 - **Identifier:** `{ type: 'UserIdentifier' | 'SystemIdentifier', name: 'x' }`
+- **At:** `{ type: 'At', target: ..., arg: ... }`
+- **Ask:** `{ type: 'Ask', target: ..., arg: ... }`
 
 ## Project Structure
 
@@ -187,6 +205,8 @@ This parser implements the complete RiX language specification including:
 - **Collections:** Arrays, matrices, tensors, sets, maps with metadata support
 - **Control Flow:** Pattern matching, conditional expressions, pipe operations
 - **Syntax:** Flexible string systems, code blocks, embedded languages
+- **Postfix Operations:** Precision control (@), queries (?), and universal calls (())
+- **Operator Functions:** Mathematical operators usable as variadic functions
 
 For complete language documentation, see the `design/` directory.
 
