@@ -114,6 +114,9 @@ const SYMBOL_TABLE = {
     // Property access
     '.': { precedence: PRECEDENCE.PROPERTY, associativity: 'left', type: 'infix' },
     
+    // Postfix metadata operators (highest precedence)
+    '@': { precedence: PRECEDENCE.POSTFIX, associativity: 'left', type: 'postfix' },
+    
     // Calculus operators
     "'": { precedence: PRECEDENCE.CALCULUS, associativity: 'left', type: 'calculus' },
     
@@ -257,7 +260,17 @@ class Parser {
                 } else if (token.value === '{{') {
                     return this.parseCodeBlock();
                 } else if (token.value === '+' || token.value === '-') {
-                    return this.parseUnaryOperator();
+                    // Check if this is a function call (operator followed by parentheses)
+                    if (this.peek().value === '(') {
+                        // Treat as identifier for function call syntax
+                        this.advance();
+                        return this.createNode('UserIdentifier', {
+                            name: token.value,
+                            original: token.original
+                        });
+                    } else {
+                        return this.parseUnaryOperator();
+                    }
                 } else if (token.value === "'") {
                     // Leading quote for integral
                     return this.parseIntegral();
@@ -268,7 +281,12 @@ class Parser {
                         original: token.original
                     });
                 } else {
-                    this.error(`Unexpected symbol: ${token.value}`);
+                    // Treat other symbols as user identifiers for function call syntax
+                    this.advance();
+                    return this.createNode('UserIdentifier', {
+                        name: token.value,
+                        original: token.original
+                    });
                 }
                 break;
 
@@ -797,9 +815,22 @@ class Parser {
                 break;
             }
 
-            // Special case for function calls
-            if (this.current.value === '(' && (left.type === 'UserIdentifier' || left.type === 'SystemIdentifier')) {
-                left = this.parseInfix(left, { precedence: PRECEDENCE.POSTFIX, type: 'postfix' });
+            // Special case for function calls - now works on any expression
+            if (this.current.value === '(') {
+                left = this.parseCall(left);
+                continue;
+            }
+
+            // Special case for postfix @ operator (AT metadata access)
+            if (this.current.value === '@' && this.peek().value === '(') {
+                left = this.parseAt(left);
+                continue;
+            }
+
+            // Special case for postfix ? operator (ASK metadata access) 
+            // Must distinguish from infix ? (condition operator)
+            if (this.current.value === '?' && this.peek().value === '(') {
+                left = this.parseAsk(left);
                 continue;
             }
 
@@ -1826,6 +1857,79 @@ class Parser {
         }
         
         return statements;
+    }
+
+    // Parse function calls - now works on any expression, not just identifiers
+    parseCall(target) {
+        this.advance(); // consume '('
+        const args = this.parseFunctionCallArgs();
+        if (this.current.value !== ')') {
+            this.error('Expected closing parenthesis in function call');
+        }
+        this.advance(); // consume ')'
+        
+        // Maintain backward compatibility: use FunctionCall for identifiers, Call for others
+        if (target.type === 'UserIdentifier' || target.type === 'SystemIdentifier') {
+            return this.createNode('FunctionCall', {
+                function: target,
+                arguments: args,
+                pos: target.pos,
+                original: target.original + '(...)'
+            });
+        } else {
+            return this.createNode('Call', {
+                target: target,
+                arguments: args,
+                pos: target.pos,
+                original: target.original + '(...)'
+            });
+        }
+    }
+
+    // Parse @ postfix operator (AT metadata access)
+    parseAt(target) {
+        this.advance(); // consume '@'
+        if (this.current.value !== '(') {
+            this.error('Expected opening parenthesis after @ operator');
+        }
+        this.advance(); // consume '('
+        
+        const arg = this.parseExpression(0);
+        
+        if (this.current.value !== ')') {
+            this.error('Expected closing parenthesis in @ operator');
+        }
+        this.advance(); // consume ')'
+        
+        return this.createNode('At', {
+            target: target,
+            arg: arg,
+            pos: target.pos,
+            original: target.original + '@(' + (arg.original || '') + ')'
+        });
+    }
+
+    // Parse ? postfix operator (ASK metadata access)
+    parseAsk(target) {
+        this.advance(); // consume '?'
+        if (this.current.value !== '(') {
+            this.error('Expected opening parenthesis after ? operator');
+        }
+        this.advance(); // consume '('
+        
+        const arg = this.parseExpression(0);
+        
+        if (this.current.value !== ')') {
+            this.error('Expected closing parenthesis in ? operator');
+        }
+        this.advance(); // consume ')'
+        
+        return this.createNode('Ask', {
+            target: target,
+            arg: arg,
+            pos: target.pos,
+            original: target.original + '?(' + (arg.original || '') + ')'
+        });
     }
 }
 

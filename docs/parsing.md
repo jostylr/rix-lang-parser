@@ -80,7 +80,7 @@ The parser uses the following precedence hierarchy (higher numbers bind tighter)
 | Precedence | Operators | Description |
 |------------|-----------|-------------|
 | 130 | `.` | Property access |
-| 120 | `()`, `[]` | Function calls, array access |
+| 120 | `@`, `?`, `()`, `[]` | Postfix operators, function calls, array access |
 | 110 | unary `+`, `-`, `NOT` | Unary operators |
 | 100 | `^`, `**` | Exponentiation (right associative) |
 | 90 | `*`, `/`, `//`, `%`, `/^`, `/~`, `/%` | Multiplication, division |
@@ -394,6 +394,247 @@ Represents null/missing values (underscore `_` symbol):
     pos: [start, delim, end],
     original: string
 }
+```
+
+## Postfix Operators
+
+RiX supports three postfix operators that provide metadata access and universal function call capabilities on any expression. These operators have the highest precedence (120) and can be chained together.
+
+### AT Operator (@)
+
+The `@` operator provides access to precision and metadata properties of mathematical objects.
+
+#### Syntax
+```
+expression@(argument)
+```
+
+#### Requirements
+- Must be immediately followed by parentheses (no whitespace)
+- Takes exactly one argument within the parentheses
+
+#### Examples
+```javascript
+// Get PI with specific precision
+PI@(1e-6)
+
+// Precision control on expressions  
+(1/3)@(epsilon)
+
+// Chained precision refinement
+PI@(1e-3)@(1e-6)
+```
+
+#### AST Structure
+```javascript
+{
+    type: "At",
+    target: expression,    // The expression being queried
+    arg: expression,       // The precision/metadata argument
+    pos: [start, delim, end],
+    original: string
+}
+```
+
+### ASK Operator (?)
+
+The `?` operator provides boolean membership and query capabilities.
+
+#### Syntax
+```
+expression?(argument)
+```
+
+#### Requirements
+- Must be immediately followed by parentheses (no whitespace)
+- Distinguishes from infix `?` (conditional operator) by requiring parentheses
+- Takes exactly one argument within the parentheses
+
+#### Examples
+```javascript
+// Check if PI is in interval [3,4]
+PI?(3:4)
+
+// Query membership
+interval?(x)
+
+// Range checking on expressions
+(1/3)?(0.333:0.334)
+
+// Chained queries
+PI?(3:4)?(true)
+```
+
+#### AST Structure
+```javascript
+{
+    type: "Ask", 
+    target: expression,    // The expression being queried
+    arg: expression,       // The query argument
+    pos: [start, delim, end],
+    original: string
+}
+```
+
+### Enhanced CALL Operator (())
+
+The enhanced call operator provides universal function call and multiplication semantics on any expression, not just identifiers.
+
+#### Syntax
+```
+expression(arguments...)
+```
+
+#### Behavior
+- **Identifiers**: Traditional function calls (backward compatible)
+- **Numbers**: Multiplication semantics
+- **Other expressions**: Universal call semantics
+
+#### Examples
+```javascript
+// Traditional function call (backward compatible)
+SIN(PI)
+
+// Number multiplication via call
+3(4)  // equivalent to 3 * 4
+
+// Tuple operations
+(2,3)(4,5)
+
+// Chained function calls
+f(x)(y)
+
+// Operators as functions
++(3, 4, 7, 9)      // addition as variadic function
+*(2, 3, 5)         // multiplication as function
+<(x, y)            // comparison as function
+*(+(2, 3), /(6, 2)) // nested operator functions
+```
+
+#### AST Structure
+
+For identifiers (backward compatibility):
+```javascript
+{
+    type: "FunctionCall",
+    function: identifier,
+    arguments: { positional: [...], keyword: {...} },
+    pos: [start, delim, end],
+    original: string
+}
+```
+
+For other expressions:
+```javascript
+{
+    type: "Call",
+    target: expression,
+    arguments: { positional: [...], keyword: {...} },
+    pos: [start, delim, end], 
+    original: string
+}
+```
+
+### Chaining and Precedence
+
+#### Operator Chaining
+All three postfix operators can be chained together:
+
+```javascript
+// AT followed by ASK
+PI@(1e-3)?(3.141:3.142)
+
+// CALL followed by AT
+f(x)@(epsilon)
+
+// All three operators chained
+g(x)@(tolerance)?(bounds)
+```
+
+#### Precedence Rules
+- **Highest precedence**: Postfix operators bind tighter than all other operators
+- **Left associative**: Operators are applied left-to-right
+- **Property access**: @ and ? bind tighter than property access (`.`)
+
+```javascript
+// Postfix binds tighter than binary operators
+x@(eps) + y        // parsed as (x@(eps)) + y
+
+// Postfix ? vs infix ? precedence
+x?(test) ? y : z   // parsed as (x?(test)) ? y : z
+
+// Property access precedence
+obj.prop@(eps)     // parsed as obj.(prop@(eps))
+```
+
+### Context Sensitivity
+
+#### Distinguishing Postfix ? from Infix ?
+
+The parser distinguishes between postfix `?` (ASK) and infix `?` (conditional) based on the immediate following token:
+
+```javascript
+// Postfix ASK operator (requires parentheses)
+x?(test)
+
+// Infix conditional operator
+x ? y : z
+```
+
+#### Error Handling
+
+```javascript
+// Valid: @ as postfix operator
+x@(eps)
+
+// Valid: @ as infix operator (if defined)
+x @ y
+
+// Error: @ without proper arguments
+x@y    // parsed as infix, may cause evaluation errors
+```
+
+### Default Behaviors
+
+All objects have default behaviors for the postfix operators:
+
+- **AT (@)**: Precision getter for oracles, intervals, irrationals
+- **ASK (?)**: Boolean membership or query operations  
+- **CALL (())**: Function call for identifiers, multiplication for numbers, variadic operations for operators
+
+#### Operator-as-Function Behavior
+
+Mathematical operators can be used as variadic functions when followed by parentheses:
+
+- **Arithmetic**: `+(args...)`, `-(args...)`, `*(args...)`, `/(args...)`
+- **Comparison**: `<(a,b)`, `>(a,b)`, `<=(a,b)`, `>=(a,b)`
+- **Equality**: `=(a,b)`, `!=(a,b)`
+- **Logic**: `AND(args...)`, `OR(args...)`
+
+This enables functional programming styles and variadic operations.
+
+These behaviors can be overridden via custom metadata properties.
+
+### Integration Examples
+
+```javascript
+// Interval arithmetic with precision
+result := (a + b)@(tolerance)
+
+// Function composition with queries
+validated := f(x)@(precision)?(expected_range)
+
+// Matrix operations
+transform := matrix(data)(vector)@(numerical_precision)
+
+// Oracle queries
+oracle_result := oracle@(tolerance)?(bounds)
+
+// Functional arithmetic with precision
+sum_result := +(a, b, c)@(numerical_precision)
+
+// Complex functional expressions
+equation := =(+(x, y), *(z, w))@(tolerance)?(bounds)
 ```
 
 ## Tuples
