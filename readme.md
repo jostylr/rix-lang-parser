@@ -30,8 +30,8 @@ A comprehensive tokenizer and parser for the RiX (Rational Interval Expression L
   - Interval arithmetic (`2:5`, `1.5:2.7`)
   - Mixed numbers (`1..3/4`)
   - Rational numbers (`3/4`)
-  - Numbers with units (`3.2~m~`, `9.8~m/s^2~`)
-  - Algebraic extensions (`2~i~`, `1+3~sqrt2~`)
+  - Scientific units using postfix operators (`3.2~[m]`, `9.8~[m/s^2]`)
+  - Mathematical units for algebraic extensions (`2~{i}`, `1+3~{sqrt2}`)
   - Repeating decimals (`0.12#45`)
 
 - **Advanced Language Features:**
@@ -40,7 +40,7 @@ A comprehensive tokenizer and parser for the RiX (Rational Interval Expression L
   - Comprehensive pipe operators (`|>`, `|>>`, `|>?`, `|>:`)
   - Array generators (`|+`, `|*`, `|:`, `|^`)
   - Pattern matching with metadata
-  - Postfix operators (`@`, `?`, `()`) for precision, queries, and universal calls
+  - **Postfix operators (`@`, `?`, `()`, `~[...]`, `~{...}`) for precision, queries, universal calls, and units
   - Operator symbols as functions (`+(a,b,c)`, `*(x,y,z)`)
   - Ternary operator (`?? ?:`) for conditional expressions
 
@@ -56,7 +56,9 @@ f := (x, n:=2) -> x^n + 1       // Function definition with optional parameter
 y := 1..3/4                     // Mixed number: one and three quarters
 z := 2:5                        // Interval from 2 to 5
 2:3 ^ 2                         // Interval elementwise exponentiation: 4:9
-a := 3.2~m~                     // Number with unit: 3.2 meters
+a := 3.2~[m]                    // Number with scientific unit: 3.2 meters
+b := 2~{i}                      // Number with mathematical unit: 2i
+CONVERT(100~[m], "m", "ft")     // Unit conversion using CONVERT function
 a:b:%4                          // Pick 4 random points in [a,b]
 [[1,2;3,4], name:="matrix"]     // Matrix with metadata
 SIN(x; n:=4)                    // System function with named argument
@@ -71,7 +73,8 @@ x > 0 ?? x ?: -x                // Ternary operator: condition ?? true ?: false
 
 ### Tokenization Features
 - **Identifiers:** Unicode letters, case-sensitive first letter determines system vs user scope
-- **Numbers:** Full support for all mathematical number formats including intervals and units
+- **Numbers:** Full support for all mathematical number formats including intervals
+- **Unit Operators:** Postfix operators `~[...]` for scientific units and `~{...}` for mathematical units
 - **Symbols:** Maximal munch tokenization for complex operators
 - **Strings:** N-delimiter quote system (`""hello""`, ```code```) for easy embedding
 - **Comments:** Multiple levels (`//`, `/* */`, `/** **/`, `/*** ***/`)
@@ -138,6 +141,11 @@ const precision = parse("PI@(1e-10)");
 const query = parse("result?(bounds)");
 const universalCall = parse("3(4)");
 const operatorFunction = parse("+(1, 2, 3)");
+
+// Unit operators
+const scientificUnit = parse("9.8~[m/s^2]");
+const mathUnit = parse("2~{i}");
+const unitConversion = parse('CONVERT(100~[m], "m", "ft")');
 ```
 
 ## API Reference

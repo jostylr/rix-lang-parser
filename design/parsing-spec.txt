@@ -74,8 +74,9 @@ Miscellaneous:
 	•	@, @@, etc. : Scope (block/global variable reference)
 	•	_ : Placeholder in destructuring, pattern-matching, or positional arguments
 	•	. : Metadata/property access (e.g., Self.Primary)
-	•	~ : Unit delimiter (e.g., 3.2~m~)
-	•	~~ : Unit conversion (e.g., x~~mi/m~)
+	•	~ : Base symbol for unit operators
+	•	~[ : Scientific unit operator (e.g., 3.2~[m])
+	•	~{ : Mathematical unit operator (e.g., 2~{i})
 	•	# : Repeating decimal marker (1.23#56)
 	•	[ ... ] : Decimal interval/repeat notation (1.23[56:67])
 	•	% : Random point(s) from interval (a:b:%n)
@@ -90,9 +91,10 @@ RiX Number Forms
 	•	Interval: 2:5, 1.25:2.5 (can be with decimals, rationals, mixed)
 	•	Repeating Decimal: 0.#3, 1.23#56
 	•	Decimal Interval/Uncertainty: 1.23[56:67], 1.23[+0.1,-0.05]
-	•	Number with Unit: 3.2~m~, 5.6~kg*m/s^2~
-	•	Number with Algebraic Extension:
-	•	Complex: 3 + 4~i~, -1~i~
+	•	Number with Scientific Unit: 3.2~[m], 5.6~[kg*m/s^2]
+	•	Number with Mathematical Unit:
+	•	Complex: 3 + 4~{i}, -1~{i}
+	•	Algebraic: 2~{sqrt2}, 3~{pi}
 	•	Primitive: e.g., Primitive("sqrt2",Poly(1,0,-2),1:2)
 	•	Number with Metadata: [ 2.5, error := 0.001 ]
 	•	Random/Partitioned: a:b:%4, a:b:/4 (partitioned intervals)

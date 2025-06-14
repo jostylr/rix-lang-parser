@@ -35,8 +35,8 @@ a:b       Interval from a to b (2:5)
 #         Repeating decimal (1.23#56)
 [ ]       Interval for decimal precision (1.23[56:67])
 E         Scientific notation exponent (5E6 means 5 x 10^6)
-~unit~    Unit annotation (3.2~m~, 9.8~m/s~)
-~~unit~   Unit conversion (x~~mi/m~)
+~[unit]   Scientific unit annotation (3.2~[m], 9.8~[m/s])
+~{unit}   Mathematical unit annotation (2~{i}, 3~{sqrt2})
 
 Piping, Functional, and Sequence Operators
 ------------------------------------------

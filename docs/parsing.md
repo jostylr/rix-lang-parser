@@ -80,7 +80,7 @@ The parser uses the following precedence hierarchy (higher numbers bind tighter)
 | Precedence | Operators | Description |
 |------------|-----------|-------------|
 | 130 | `.` | Property access |
-| 120 | `@`, `?`, `()`, `[]` | Postfix operators, function calls, array access |
+| 120 | `@`, `?`, `()`, `[]`, `~[`, `~{` | Postfix operators, function calls, array access, unit operators |
 | 110 | unary `+`, `-`, `NOT` | Unary operators |
 | 100 | `^`, `**` | Exponentiation (right associative) |
 | 90 | `*`, `/`, `//`, `%`, `/^`, `/~`, `/%` | Multiplication, division |
@@ -398,7 +398,7 @@ Represents null/missing values (underscore `_` symbol):
 
 ## Postfix Operators
 
-RiX supports three postfix operators that provide metadata access and universal function call capabilities on any expression. These operators have the highest precedence (120) and can be chained together.
+RiX supports five postfix operators that provide metadata access, universal function call capabilities, and unit annotations on any expression. These operators have the highest precedence (120) and can be chained together.
 
 ### AT Operator (@)
 
@@ -615,6 +615,82 @@ This enables functional programming styles and variadic operations.
 
 These behaviors can be overridden via custom metadata properties.
 
+### Scientific Unit Operator (~[)
+
+The `~[` operator attaches scientific units to expressions.
+
+#### Syntax
+```
+expression~[unit]
+```
+
+#### Requirements
+- Opening `~[` must be immediately followed by unit content
+- Unit content extends until matching closing `]`
+- No nesting of brackets within units
+
+#### Examples
+```javascript
+// Basic units
+3~[m]              // 3 meters
+5.2~[kg]           // 5.2 kilograms
+
+// Complex units
+9.8~[m/s^2]        // acceleration
+2~[kg*m^2/s^2]     // energy unit
+
+// Units on expressions
+(a + b)~[m]        // sum with meters
+SIN(x)~[rad]       // sine of x radians
+```
+
+#### AST Structure
+```javascript
+{
+    type: "ScientificUnit",
+    target: expression,    // The expression being annotated
+    unit: string,          // The unit content between brackets
+    pos: [start, delim, end],
+    original: string
+}
+```
+
+### Mathematical Unit Operator (~{)
+
+The `~{` operator attaches mathematical units (like imaginary unit, algebraic extensions) to expressions.
+
+#### Syntax
+```
+expression~{unit}
+```
+
+#### Requirements
+- Opening `~{` must be immediately followed by unit content
+- Unit content extends until matching closing `}`
+- No nesting of braces within units
+
+#### Examples
+```javascript
+// Mathematical units
+2~{i}              // 2 times imaginary unit
+1~{sqrt2}          // 1 times square root of 2
+3~{pi}             // 3 times pi
+
+// Units on expressions
+(x + y)~{i}        // complex number
+```
+
+#### AST Structure
+```javascript
+{
+    type: "MathematicalUnit",
+    target: expression,    // The expression being annotated
+    unit: string,          // The unit content between braces
+    pos: [start, delim, end],
+    original: string
+}
+```
+
 ### Integration Examples
 
 ```javascript
@@ -635,6 +711,14 @@ sum_result := +(a, b, c)@(numerical_precision)
 
 // Complex functional expressions
 equation := =(+(x, y), *(z, w))@(tolerance)?(bounds)
+
+// Unit annotations
+velocity := 5~[m/s]
+complex := 3~{i}~[V]              // complex voltage
+energy := (m * c^2)~[J]
+
+// Unit conversion using CONVERT function
+distance := CONVERT(100~[m], "m", "ft")
 ```
 
 ## Tuples
@@ -2022,10 +2106,13 @@ poly(x, a, b := 1, c := 0) :-> a*x^2 + b*x + c
 
 ```javascript
 // Basic keyword-only parameters
-trig(x; precision := 10, units := "radians") :-> SIN(x; precision)
+trig(x; precision := 10, angleUnit := "radians") :-> SIN(x; precision)
 
 // Complex parameter mix
 func(x, y, scale := 1; offset := 0, normalize := false) :-> (x + y) * scale + offset
+
+// Function with unit annotations
+physics(m~[kg], v~[m/s]) :-> (1/2) * m * v^2
 ```
 
 #### Conditional Parameters

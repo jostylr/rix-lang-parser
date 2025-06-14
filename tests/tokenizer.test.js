@@ -116,13 +116,23 @@ describe("Math Oracle Tokenizer", () => {
     });
 
     test("pos field for unit change strings", () => {
-      const tokens = tokenize("~~m~ ~~kg/s~");
+      const tokens = tokenize("~[m] ~[kg/s]");
 
-      // ~~m~: starts at 0, value at 2, ends at 4
-      expect(tokens[0].pos).toEqual([0, 2, 4]);
+      // ~[: starts at 0, ends at 2
+      expect(tokens[0].pos).toEqual([0, 0, 2]);
+      expect(tokens[0].value).toBe("~[");
 
-      // ~~kg/s~: starts at 4 (including space), value at 7, ends at 12
-      expect(tokens[1].pos).toEqual([4, 7, 12]);
+      // m: starts at 2, ends at 3
+      expect(tokens[1].pos).toEqual([2, 2, 3]);
+      expect(tokens[1].value).toBe("m");
+
+      // ]: starts at 3, ends at 4
+      expect(tokens[2].pos).toEqual([3, 3, 4]);
+      expect(tokens[2].value).toBe("]");
+
+      // ~[: starts at 5, ends at 7 (includes space)
+      expect(tokens[3].pos).toEqual([4, 5, 7]);
+      expect(tokens[3].value).toBe("~[");
     });
 
     test("pos field with whitespace only input", () => {
@@ -644,64 +654,41 @@ describe("Math Oracle Tokenizer", () => {
       });
     });
 
-    describe("numbers with units", () => {
-      test("basic units", () => {
-        const tokens = tokenize("5~m~ 10~kg~ 3.14~s~");
+    describe("numbers without units", () => {
+      test("numbers are parsed without units", () => {
+        const tokens = tokenize("5 10 3.14");
         expect(tokens).toEqual(
           withEnd([
-            { type: "Number", original: "5~m~", value: "5~m~", pos: [0, 0, 4] },
+            { type: "Number", original: "5", value: "5", pos: [0, 0, 1] },
             {
               type: "Number",
-              original: " 10~kg~",
-              value: "10~kg~",
-              pos: [4, 5, 11],
+              original: " 10",
+              value: "10",
+              pos: [1, 2, 4],
             },
             {
               type: "Number",
-              original: " 3.14~s~",
-              value: "3.14~s~",
-              pos: [11, 12, 19],
+              original: " 3.14",
+              value: "3.14",
+              pos: [4, 5, 9],
             },
           ]),
         );
       });
 
-      test("negative numbers with units", () => {
-        const tokens = tokenize("-5~m~ -3.14~s~");
+      test("tilde after number is separate symbol", () => {
+        const tokens = tokenize("5~ 3.14~");
         expect(tokens).toEqual(
           withEnd([
+            { type: "Number", original: "5", value: "5", pos: [0, 0, 1] },
+            { type: "Symbol", original: "~", value: "~", pos: [1, 1, 2] },
             {
               type: "Number",
-              original: "-5~m~",
-              value: "-5~m~",
-              pos: [0, 0, 5],
+              original: " 3.14",
+              value: "3.14",
+              pos: [2, 3, 7],
             },
-            {
-              type: "Number",
-              original: " -3.14~s~",
-              value: "-3.14~s~",
-              pos: [5, 6, 14],
-            },
-          ]),
-        );
-      });
-
-      test("complex numbers with units", () => {
-        const tokens = tokenize("2.5e3~Hz~ 1/3~m~");
-        expect(tokens).toEqual(
-          withEnd([
-            {
-              type: "Number",
-              original: "2.5e3~Hz~",
-              value: "2.5e3~Hz~",
-              pos: [0, 0, 9],
-            },
-            {
-              type: "Number",
-              original: " 1/3~m~",
-              value: "1/3~m~",
-              pos: [9, 10, 16],
-            },
+            { type: "Symbol", original: "~", value: "~", pos: [7, 7, 8] },
           ]),
         );
       });
@@ -709,42 +696,87 @@ describe("Math Oracle Tokenizer", () => {
 
     describe("numbers with algebraic extensions", () => {
       test("imaginary numbers", () => {
-        const tokens = tokenize("2~i~ -5~j~ 3.14~i~");
+        const tokens = tokenize("2~{i} -5~{j} 3.14~{i}");
         expect(tokens).toEqual(
           withEnd([
-            { type: "Number", original: "2~i~", value: "2~i~", pos: [0, 0, 4] },
+            { type: "Number", original: "2", value: "2", pos: [0, 0, 1] },
+            { type: "Symbol", original: "~{", value: "~{", pos: [1, 1, 3] },
+            {
+              type: "Identifier",
+              original: "i",
+              value: "i",
+              kind: "User",
+              pos: [3, 3, 4],
+            },
+            { type: "Symbol", original: "}", value: "}", pos: [4, 4, 5] },
             {
               type: "Number",
-              original: " -5~j~",
-              value: "-5~j~",
-              pos: [4, 5, 10],
+              original: " -5",
+              value: "-5",
+              pos: [5, 6, 8],
             },
+            { type: "Symbol", original: "~{", value: "~{", pos: [8, 8, 10] },
+            {
+              type: "Identifier",
+              original: "j",
+              value: "j",
+              kind: "User",
+              pos: [10, 10, 11],
+            },
+            { type: "Symbol", original: "}", value: "}", pos: [11, 11, 12] },
             {
               type: "Number",
-              original: " 3.14~i~",
-              value: "3.14~i~",
-              pos: [10, 11, 18],
+              original: " 3.14",
+              value: "3.14",
+              pos: [12, 13, 17],
             },
+            { type: "Symbol", original: "~{", value: "~{", pos: [17, 17, 19] },
+            {
+              type: "Identifier",
+              original: "i",
+              value: "i",
+              kind: "User",
+              pos: [19, 19, 20],
+            },
+            { type: "Symbol", original: "}", value: "}", pos: [20, 20, 21] },
           ]),
         );
       });
 
       test("algebraic extensions", () => {
-        const tokens = tokenize("1~sqrt2~ 3/4~sqrt3~");
+        const tokens = tokenize("1~{sqrt2} 3/4~{sqrt3}");
         expect(tokens).toEqual(
           withEnd([
             {
               type: "Number",
-              original: "1~sqrt2~",
-              value: "1~sqrt2~",
-              pos: [0, 0, 8],
+              original: "1",
+              value: "1",
+              pos: [0, 0, 1],
             },
+            { type: "Symbol", original: "~{", value: "~{", pos: [1, 1, 3] },
+            {
+              type: "Identifier",
+              original: "sqrt2",
+              value: "sqrt2",
+              kind: "User",
+              pos: [3, 3, 8],
+            },
+            { type: "Symbol", original: "}", value: "}", pos: [8, 8, 9] },
             {
               type: "Number",
-              original: " 3/4~sqrt3~",
-              value: "3/4~sqrt3~",
-              pos: [8, 9, 19],
+              original: " 3/4",
+              value: "3/4",
+              pos: [9, 10, 13],
             },
+            { type: "Symbol", original: "~{", value: "~{", pos: [13, 13, 15] },
+            {
+              type: "Identifier",
+              original: "sqrt3",
+              value: "sqrt3",
+              kind: "User",
+              pos: [15, 15, 20],
+            },
+            { type: "Symbol", original: "}", value: "}", pos: [20, 20, 21] },
           ]),
         );
       });
@@ -1075,69 +1107,79 @@ describe("Math Oracle Tokenizer", () => {
       });
     });
 
-    describe("unit change strings", () => {
-      test("unit change notation", () => {
-        const tokens = tokenize("~~m~ ~~kg~");
+    describe("unit operators", () => {
+      test("scientific unit operator ~[", () => {
+        const tokens = tokenize("3~[m] 5~[kg/s^2]");
         expect(tokens).toEqual(
           withEnd([
+            { type: "Number", original: "3", value: "3", pos: [0, 0, 1] },
+            { type: "Symbol", original: "~[", value: "~[", pos: [1, 1, 3] },
             {
-              type: "String",
-              original: "~~m~",
+              type: "Identifier",
+              original: "m",
               value: "m",
-              kind: "unit change",
-              pos: [0, 2, 4],
+              kind: "User",
+              pos: [3, 3, 4],
             },
+            { type: "Symbol", original: "]", value: "]", pos: [4, 4, 5] },
+            { type: "Number", original: " 5", value: "5", pos: [5, 6, 7] },
+            { type: "Symbol", original: "~[", value: "~[", pos: [7, 7, 9] },
             {
-              type: "String",
-              original: " ~~kg~",
+              type: "Identifier",
+              original: "kg",
               value: "kg",
-              kind: "unit change",
-              pos: [4, 7, 10],
+              kind: "User",
+              pos: [9, 9, 11],
             },
+            { type: "Symbol", original: "/", value: "/", pos: [11, 11, 12] },
+            {
+              type: "Identifier",
+              original: "s",
+              value: "s",
+              kind: "User",
+              pos: [12, 12, 13],
+            },
+            { type: "Symbol", original: "^", value: "^", pos: [13, 13, 14] },
+            { type: "Number", original: "2", value: "2", pos: [14, 14, 15] },
+            { type: "Symbol", original: "]", value: "]", pos: [15, 15, 16] },
           ]),
         );
       });
 
-      test("empty unit change", () => {
-        const tokens = tokenize("~~~ ~~a~");
+      test("mathematical unit operator ~{", () => {
+        const tokens = tokenize("2~{i} 1~{sqrt2} 3~{pi}");
         expect(tokens).toEqual(
           withEnd([
+            { type: "Number", original: "2", value: "2", pos: [0, 0, 1] },
+            { type: "Symbol", original: "~{", value: "~{", pos: [1, 1, 3] },
             {
-              type: "String",
-              original: "~~~",
-              value: "",
-              kind: "unit change",
-              pos: [0, 2, 3],
+              type: "Identifier",
+              original: "i",
+              value: "i",
+              kind: "User",
+              pos: [3, 3, 4],
             },
+            { type: "Symbol", original: "}", value: "}", pos: [4, 4, 5] },
+            { type: "Number", original: " 1", value: "1", pos: [5, 6, 7] },
+            { type: "Symbol", original: "~{", value: "~{", pos: [7, 7, 9] },
             {
-              type: "String",
-              original: " ~~a~",
-              value: "a",
-              kind: "unit change",
-              pos: [3, 6, 8],
+              type: "Identifier",
+              original: "sqrt2",
+              value: "sqrt2",
+              kind: "User",
+              pos: [9, 9, 14],
             },
-          ]),
-        );
-      });
-
-      test("complex unit change without spaces", () => {
-        const tokens = tokenize("~~kg/m^2~ ~~ft/s^2~");
-        expect(tokens).toEqual(
-          withEnd([
+            { type: "Symbol", original: "}", value: "}", pos: [14, 14, 15] },
+            { type: "Number", original: " 3", value: "3", pos: [15, 16, 17] },
+            { type: "Symbol", original: "~{", value: "~{", pos: [17, 17, 19] },
             {
-              type: "String",
-              original: "~~kg/m^2~",
-              value: "kg/m^2",
-              kind: "unit change",
-              pos: [0, 2, 9],
+              type: "Identifier",
+              original: "pi",
+              value: "pi",
+              kind: "User",
+              pos: [19, 19, 21],
             },
-            {
-              type: "String",
-              original: " ~~ft/s^2~",
-              value: "ft/s^2",
-              kind: "unit change",
-              pos: [9, 12, 19],
-            },
+            { type: "Symbol", original: "}", value: "}", pos: [21, 21, 22] },
           ]),
         );
       });
@@ -1219,7 +1261,12 @@ describe("Math Oracle Tokenizer", () => {
             { type: "Symbol", original: " |:", value: "|:", pos: [21, 22, 24] },
             { type: "Symbol", original: " |;", value: "|;", pos: [24, 25, 27] },
             { type: "Symbol", original: " |^", value: "|^", pos: [27, 28, 30] },
-            { type: "Symbol", original: " |^:", value: "|^:", pos: [30, 31, 34] },
+            {
+              type: "Symbol",
+              original: " |^:",
+              value: "|^:",
+              pos: [30, 31, 34],
+            },
             { type: "Symbol", original: " |?", value: "|?", pos: [34, 35, 37] },
           ]),
         );
@@ -1247,7 +1294,12 @@ describe("Math Oracle Tokenizer", () => {
             { type: "Symbol", original: "::+", value: "::+", pos: [0, 0, 3] },
             { type: "Symbol", original: " :~/", value: ":~/", pos: [3, 4, 7] },
             { type: "Symbol", original: " :/:", value: ":/:", pos: [7, 8, 11] },
-            { type: "Symbol", original: "  :~", value: ":~", pos: [11, 13, 15] },
+            {
+              type: "Symbol",
+              original: "  :~",
+              value: ":~",
+              pos: [11, 13, 15],
+            },
             {
               type: "Symbol",
               original: " :/%",
@@ -1290,12 +1342,13 @@ describe("Math Oracle Tokenizer", () => {
         );
       });
 
-      test("function operators", () => {
-        const tokens = tokenize("~~ %");
+      test("unit operators", () => {
+        const tokens = tokenize("~[ ~{ %");
         expect(tokens).toEqual(
           withEnd([
-            { type: "Symbol", original: "~~", value: "~~", pos: [0, 0, 2] },
-            { type: "Symbol", original: " %", value: "%", pos: [2, 3, 4] },
+            { type: "Symbol", original: "~[", value: "~[", pos: [0, 0, 2] },
+            { type: "Symbol", original: " ~{", value: "~{", pos: [2, 3, 5] },
+            { type: "Symbol", original: " %", value: "%", pos: [5, 6, 7] },
           ]),
         );
       });
@@ -1441,14 +1494,14 @@ describe("Math Oracle Tokenizer", () => {
     });
 
     test("interval with mixed types", () => {
-      const tokens = tokenize("1..3/4:2.5#6~m~");
+      const tokens = tokenize("1..3/4:2.5#6");
       expect(tokens).toEqual(
         withEnd([
           {
             type: "Number",
-            original: "1..3/4:2.5#6~m~",
-            value: "1..3/4:2.5#6~m~",
-            pos: [0, 0, 15],
+            original: "1..3/4:2.5#6",
+            value: "1..3/4:2.5#6",
+            pos: [0, 0, 12],
           },
         ]),
       );
@@ -1565,21 +1618,27 @@ describe("Math Oracle Tokenizer", () => {
       );
     });
 
-    test("unmatched unit change throws error", () => {
-      expect(() => tokenize("x + ~~unclosed")).toThrow(
-        "Delimiter unmatched. Need",
-      );
-    });
-
-    test("unit change with spaces throws error", () => {
-      expect(() => tokenize("~~ m ~")).toThrow(
-        "Invalid unit change format. Spaces not allowed in unit change",
-      );
-    });
-
-    test("unit change with multiple spaces throws error", () => {
-      expect(() => tokenize("~~ kg / s ~")).toThrow(
-        "Invalid unit change format. Spaces not allowed in unit change",
+    test("unit operators are tokenized separately", () => {
+      const tokens = tokenize("x ~[ y ~{");
+      expect(tokens).toEqual(
+        withEnd([
+          {
+            type: "Identifier",
+            original: "x",
+            value: "x",
+            kind: "User",
+            pos: [0, 0, 1],
+          },
+          { type: "Symbol", original: " ~[", value: "~[", pos: [1, 2, 4] },
+          {
+            type: "Identifier",
+            original: " y",
+            value: "y",
+            kind: "User",
+            pos: [4, 5, 6],
+          },
+          { type: "Symbol", original: " ~{", value: "~{", pos: [6, 7, 9] },
+        ]),
       );
     });
 
@@ -1602,6 +1661,29 @@ describe("Math Oracle Tokenizer", () => {
             kind: "User",
             pos: [3, 4, 5],
           },
+        ]),
+      );
+    });
+
+    test("tilde is separate from numbers", () => {
+      const tokens = tokenize("3.2~ m ~");
+      expect(tokens).toEqual(
+        withEnd([
+          {
+            type: "Number",
+            original: "3.2",
+            value: "3.2",
+            pos: [0, 0, 3],
+          },
+          { type: "Symbol", original: "~", value: "~", pos: [3, 3, 4] },
+          {
+            type: "Identifier",
+            original: " m",
+            value: "m",
+            kind: "User",
+            pos: [4, 5, 6],
+          },
+          { type: "Symbol", original: " ~", value: "~", pos: [6, 7, 8] },
         ]),
       );
     });
@@ -1630,20 +1712,20 @@ describe("Math Oracle Tokenizer", () => {
       );
     });
 
-    test("unit with spaces fails", () => {
-      const tokens = tokenize("3.2~ m ~");
+    test("unit operators work with spaces", () => {
+      const tokens = tokenize("3.2 ~[ m ]");
       expect(tokens).toEqual(
         withEnd([
           { type: "Number", original: "3.2", value: "3.2", pos: [0, 0, 3] },
-          { type: "Symbol", original: "~", value: "~", pos: [3, 3, 4] },
+          { type: "Symbol", original: " ~[", value: "~[", pos: [3, 4, 6] },
           {
             type: "Identifier",
             original: " m",
             value: "m",
             kind: "User",
-            pos: [4, 5, 6],
+            pos: [6, 7, 8],
           },
-          { type: "Symbol", original: " ~", value: "~", pos: [6, 7, 8] },
+          { type: "Symbol", original: " ]", value: "]", pos: [8, 9, 10] },
         ]),
       );
     });
@@ -1782,11 +1864,10 @@ describe("Math Oracle Tokenizer", () => {
     });
 
     test("string kinds are correct", () => {
-      const tokens = tokenize('"quote" `backtick` /*comment*/ ~~unit~');
+      const tokens = tokenize('"quote" `backtick` /*comment*/');
       expect(tokens[0].kind).toBe("quote");
       expect(tokens[1].kind).toBe("backtick");
       expect(tokens[2].kind).toBe("comment");
-      expect(tokens[3].kind).toBe("unit change");
     });
 
     test("original concatenation preserves input", () => {

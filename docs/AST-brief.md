@@ -14,8 +14,6 @@ This document provides a comprehensive reference for all token types generated b
 - Intervals: `2:5`, `1.5:3.7`, `-2:0`
 - Repeating decimals: `0.12#34`, `1.#3`
 - Scientific notation: `1.23E-4`, `5E6`
-- Numbers with units: `3.2~m~`, `9.8~m/s^2~`
-- Algebraic extensions: `2~i~`, `1+3~sqrt2~`
 - Decimal intervals: `1.23[56:67]`
 
 ### Identifier
@@ -34,7 +32,8 @@ This document provides a comprehensive reference for all token types generated b
 - Array generators: `|+`, `|*`, `|:`, `|^`
 - Brackets: `(`, `)`, `[`, `]`, `{`, `}`
 - Punctuation: `,`, `;`, `.`, `_`
-- Postfix operators: `@`, `?` (when followed by parentheses)
+- Unit operators: `~[`, `~{`
+- Postfix operators: `@`, `?` (when followed by parentheses), `~[`, `~{`
 
 ### String
 **Purpose:** Represents quoted literals, backticks, and comments  
@@ -42,7 +41,6 @@ This document provides a comprehensive reference for all token types generated b
 - Double quotes: `"hello"`, `""complex""`, `"""multiline"""`
 - Backticks: `` `code` ``, ``` ``nested`` ```
 - Comments: `# line comment`, `/* block */`, `/** doc **/`
-- Unit changes: `~~mi/m~`
 
 ### Postfix Operators
 **Purpose:** Represents postfix operations for precision, queries, and function calls
@@ -51,6 +49,8 @@ This document provides a comprehensive reference for all token types generated b
 - ASK operator: `expr?(arg)` - membership/query testing  
 - Enhanced CALL: `expr(args)` - universal function call on any expression
 - Operator functions: `+(a,b,c)`, `*(x,y)` - operators as variadic functions
+- Scientific units: `expr~[unit]` - attach scientific units to expressions
+- Mathematical units: `expr~{unit}` - attach mathematical units to expressions
 
 ### PlaceHolder
 **Purpose:** Represents numbered placeholders for parameter positioning  
@@ -516,6 +516,24 @@ This document provides a comprehensive reference for all token types generated b
 }
 ```
 
+### ScientificUnit
+```javascript
+{
+  target: ASTNode,    // Expression being annotated with units
+  unit: string,       // Scientific unit content (e.g., "m", "kg/s^2")
+  original: string    // Combined original text
+}
+```
+
+### MathematicalUnit
+```javascript
+{
+  target: ASTNode,    // Expression being annotated with units
+  unit: string,       // Mathematical unit content (e.g., "i", "sqrt2", "pi")
+  original: string    // Combined original text
+}
+```
+
 ### TernaryOperation
 ```javascript
 {
@@ -611,6 +629,24 @@ All AST nodes include these base properties:
 - `<(x, y)` - Comparison as function: x < y
 - `=(a, b)` - Equality as function: a = b
 
+### Scientific Unit Operator (~[)
+**Purpose:** Attach scientific units to mathematical expressions
+**Syntax:** `expression~[unit]`
+**Precedence:** 120 (POSTFIX - highest precedence)
+**Examples:**
+- `3~[m]` - 3 meters
+- `9.8~[m/s^2]` - Acceleration in meters per second squared
+- `(F/m)~[kg]` - Force per unit mass with kilogram units
+
+### Mathematical Unit Operator (~{)
+**Purpose:** Attach mathematical units or algebraic extensions to expressions
+**Syntax:** `expression~{unit}`
+**Precedence:** 120 (POSTFIX - highest precedence)
+**Examples:**
+- `2~{i}` - 2 times the imaginary unit
+- `1~{sqrt2}` - 1 times square root of 2
+- `(a+b)~{pi}` - Expression times pi
+
 ### Chaining Postfix Operators
 **Purpose:** Multiple postfix operators can be chained for complex operations
 **Precedence:** All postfix operators have same precedence and are left-associative
@@ -618,3 +654,5 @@ All AST nodes include these base properties:
 - `PI@(1e-6)?(3.14:3.15)` - Get precise PI then check range
 - `f(x)@(eps)?(bounds)` - Call function, apply precision, check bounds
 - `result?(test)@(meta)` - Query result then access metadata
+- `3~{i}~[V]` - Complex number with voltage units
+- `expr~[m/s]@(tolerance)` - Expression with units and precision

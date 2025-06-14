@@ -76,60 +76,60 @@ This section specifies support for units in the Mathematical Expression Language
 
 ### Unit Syntax
 
-* **Attach units to numbers with tildes:**
+* **Attach units to numbers with brackets:**
 
-  * `3.2~m~` → 3.2 meters
-  * `9.8~m/s^2~` → 9.8 meters per second squared
-  * `2~kg*m^2/s^2~` → 2 joules (if so defined)
-* **Complex units:** Any valid unit string between tildes (including `/`, `^`, `*`).
+  * `3.2~[m]` → 3.2 meters (scientific unit)
+  * `9.8~[m/s^2]` → 9.8 meters per second squared
+  * `2~[kg*m^2/s^2]` → 2 joules (if so defined)
+* **Complex units:** Any valid unit string between brackets (including `/`, `^`, `*`).
 
 #### Arithmetic with Units
 
 * **Addition/Subtraction:** Only allowed with *identical* units. Attempting to add/subtract numbers with incompatible units throws an error.
 * **Multiplication/Division:** Units combine naturally:
 
-  * `3~m~ * 2~s~ = 6~m*s~`
+  * `3~[m] * 2~[s] = 6~[m*s]`
 * **Exponentiation:** Units exponentiate:
 
-  * `2~m~ ^ 3 = 8~m^3~`
+  * `2~[m] ^ 3 = 8~[m^3]`
 * **Simplification:** Automatic if units cancel:
 
-  * `5~m~ / 2~m~ = 2.5` (unitless)
+  * `5~[m] / 2~[m] = 2.5` (unitless)
 
 #### Unit Conversion
 
-* **Syntax:** `value~~new_unit/old_unit~`
+* **Syntax:** `CONVERT(value, "old_unit", "new_unit")`
 
-  * E.g., `3.2~m~ ~~mi/m~` converts meters to miles
-  * Double-tilde `~~` marks the conversion operation
+  * E.g., `CONVERT(3.2~[m], "m", "mi")` converts meters to miles
+  * Use the CONVERT system function for unit conversions
   * The system automatically applies known conversion factors
 
 #### Defining Units
 
 * **Built-in command:** `Unit(name, definition)`
 
-  * Example: `Unit("ly", 9.4607e15~m~)`  ly for lightyear
+  * Example: `Unit("ly", 9.4607e15~[m])`  ly for lightyear
   * Adds a user-defined unit or alias to the system's conversion table
 
 ### Sample Usage
 
 ```plaintext
-a := 10~m~
-b := 3~m~
-a + b         // 13~m~
+a := 10~[m]
+b := 3~[m]
+a + b         // 13~[m]
 
-c := 4~s~
-a / c         // 2.5~m/s~
+c := 4~[s]
+a / c         // 2.5~[m/s]
 
-d := 20~m/s~
-d * c         // 80~m~
+d := 20~[m/s]
+d * c         // 80~[m]
 
-speed := 100~km/h~
-speed~~m/s~   // Convert to m/s
+speed := 100~[km/h]
+CONVERT(speed, "km/h", "m/s")   // Convert to m/s
 
-e := 5~kg~
-f := 20~m/s^2~
-force := e * f     // 100~kg*m/s^2~
+e := 5~[kg]
+f := 20~[m/s^2]
+force := e * f     // 100~[kg*m/s^2]
 
 // Error: incompatible units
 a + c         // Error: cannot add meters and seconds
@@ -138,7 +138,7 @@ a + c         // Error: cannot add meters and seconds
 
 #### Notes
 
-* **Unit Parsing:** Supports algebraic units, e.g., `~kg*m^2/s^2~` or `~N~`
+* **Unit Parsing:** Supports algebraic units, e.g., `~[kg*m^2/s^2]` or `~[N]`
 * **Conversion:** System simplifies/cancels units, recognizes canonical forms, and allows user extension
 * **Units are first-class and checked at evaluation time**
 * **User-defined units and conversion rules are supported**
@@ -156,15 +156,15 @@ Number system extensions—including complex numbers, algebraic roots, and gener
 
 * **Syntax:**
 
-  * `3 + 4~i~` (represents 3 + 4i)
+  * `3 + 4~{i}` (represents 3 + 4i)
 * **Arithmetic:**
 
   * Addition/subtraction: combine like terms
 
-    * `(3 + 4~i~) + (1 + 2~i~) = 4 + 6~i~`
-  * Multiplication: FOIL and apply `~i*i~ = -1`
+    * `(3 + 4~{i}) + (1 + 2~{i}) = 4 + 6~{i}`
+  * Multiplication: FOIL and apply `~{i}*~{i} = -1`
 
-    * `(3 + 4~i~) * (1 + 2~i~) = 3*1 + 3*2~i~ + 4~i~*1 + 4~i~*2~i~ = 3 + 6~i~ + 4~i~ + 8~i*i~ = 3 + 10~i~ - 8 = -5 + 10~i~`
+    * `(3 + 4~{i}) * (1 + 2~{i}) = 3*1 + 3*2~{i} + 4~{i}*1 + 4~{i}*2~{i} = 3 + 6~{i} + 4~{i} + 8*(-1) = 3 + 10~{i} - 8 = -5 + 10~{i}`
   * Exponentiation: Use binomial theorem and powers of `i`
 * **Arithmetic rules for `i`:**
 
@@ -183,12 +183,12 @@ Number system extensions—including complex numbers, algebraic roots, and gener
     * **Interval:** `1:2` (specifies which root to use)
 * **Usage:**
 
-  * `2 + 3~sqrt2~`
+  * `2 + 3~{sqrt2}`
   * Arithmetic uses the minimal polynomial for simplification:
 
-    * `~sqrt2~ * ~sqrt2~ = 2`
-    * `(2 + 3~sqrt2~) + (1 - ~sqrt2~) = 3 + 2~sqrt2~`
-    * `(2 + 3~sqrt2~) * (1 - ~sqrt2~)` expands and simplifies accordingly
+    * `~{sqrt2} * ~{sqrt2} = 2`
+    * `(2 + 3~{sqrt2}) + (1 - ~{sqrt2}) = 3 + 2~{sqrt2}`
+    * `(2 + 3~{sqrt2}) * (1 - ~{sqrt2})` expands and simplifies accordingly
 * **General extensions:**
 
   * `Primitive("xi", Poly(1, 0, 0, -1), 0:2)` for a root of x³ - 1
@@ -198,7 +198,7 @@ Number system extensions—including complex numbers, algebraic roots, and gener
 
 * **Syntax:**
 
-  * `Real(2 + 3~sqrt2~, E-6)`
+  * `Real(2 + 3~{sqrt2}, E-6)`
 
     * Converts the expression to a real number (float/interval) within 10^-6 accuracy.
 * **Behavior:**
@@ -211,17 +211,17 @@ Number system extensions—including complex numbers, algebraic roots, and gener
 
 ```plaintext
 // Complex arithmetic
-z := 3 + 4~i~
-w := 1 + 2~i~
-z + w       // 4 + 6~i~
-z * w       // -5 + 10~i~
+z := 3 + 4~{i}
+w := 1 + 2~{i}
+z + w       // 4 + 6~{i}
+z * w       // -5 + 10~{i}
 
 // Algebraic extension
 Primitive("sqrt2", Poly(1,0,-2), 1:2)
-x := 2 + 3~sqrt2~
-y := 1 - ~sqrt2~
-x + y       // 3 + 2~sqrt2~
-x * y       // -1 + ~sqrt2~
+x := 2 + 3~{sqrt2}
+y := 1 - ~{sqrt2}
+x + y       // 3 + 2~{sqrt2}
+x * y       // -1 + ~{sqrt2}
 
 // Real approximation
 Real(x, E-6)  // Returns decimal value with 10^-6 accuracy
@@ -238,16 +238,16 @@ Real(x, E-6)  // Returns decimal value with 10^-6 accuracy
     * `Primitive("xi", Poly(1, 0, 0, -1), 0:2)` defines a cube root of 1.
 * **Usage:**
 
-  * `a := 2 + ~xi~`
+  * `a := 2 + ~{xi}`
   * Arithmetic follows the defining polynomial for reduction.
 
 
 #### Notes
 
 * **Extensions are first-class and behave as units in arithmetic.**
-* **Simplification rules** (e.g., `~i*i~ = -1`, `~sqrt2~ * ~sqrt2~ = 2`) are built-in for each primitive.
+* **Simplification rules** (e.g., `~{i}*~{i} = -1`, `~{sqrt2} * ~{sqrt2} = 2`) are built-in for each primitive.
 * **Approximate real evaluation** can be requested explicitly via `Real(...)`.
-* **Works for both complex and algebraic extensions, even simultaneously (e.g., a + b~~i~~ + c~~sqrt2~~).**
+* **Works for both complex and algebraic extensions, even simultaneously (e.g., a + b~{i} + c~{sqrt2}).**
 
 ---
 
