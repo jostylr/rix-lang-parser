@@ -13,6 +13,7 @@ const modalContent = document.getElementById('modal-content');
 const modalCloseButton = document.getElementById('modal-close');
 const closeButton = document.querySelector('.close-button');
 const examplesDropdown = document.getElementById('examples-dropdown');
+const copyButton = document.getElementById('copy-button');
 const clearButton = document.getElementById('clear-button');
 
 // Tab functionality
@@ -143,7 +144,21 @@ function createTreeNode(node, nodeName = null, isRoot = false) {
         childrenContainer.className = 'node-children expanded'; // Default to expanded
         
         compactContent.children.forEach(({key, value}) => {
-            childrenContainer.appendChild(createTreeNode(value, key, false));
+            const childWrapper = document.createElement('div');
+            childWrapper.className = 'child-wrapper';
+            
+            // Add key label
+            const keyLabel = document.createElement('span');
+            keyLabel.className = 'key-label';
+            keyLabel.textContent = `${key.toUpperCase()}:`;
+            childWrapper.appendChild(keyLabel);
+            
+            // Add the actual tree node
+            const childNode = createTreeNode(value, key, false);
+            childNode.style.display = 'inline-block';
+            childWrapper.appendChild(childNode);
+            
+            childrenContainer.appendChild(childWrapper);
         });
         
         treeNode.appendChild(childrenContainer);
@@ -355,17 +370,37 @@ function showPlaceholder() {
 // Examples dropdown functionality
 examplesDropdown.addEventListener('change', (e) => {
     if (e.target.value) {
-        // Append to existing content if there's any, otherwise replace
-        const currentValue = inputExpression.value.trim();
-        if (currentValue) {
-            inputExpression.value = currentValue + '\n' + e.target.value;
-        } else {
-            inputExpression.value = e.target.value;
-        }
+        // Always replace the current content
+        inputExpression.value = e.target.value;
         // Reset dropdown to placeholder
         e.target.selectedIndex = 0;
         // Auto-parse the new content
         parseExpression();
+    }
+});
+
+// Copy button functionality
+copyButton.addEventListener('click', async () => {
+    const text = inputExpression.value;
+    if (text.trim()) {
+        try {
+            await navigator.clipboard.writeText(text);
+            // Visual feedback
+            const originalText = copyButton.textContent;
+            copyButton.textContent = '✓';
+            setTimeout(() => {
+                copyButton.textContent = originalText;
+            }, 1000);
+        } catch (err) {
+            // Fallback for older browsers
+            inputExpression.select();
+            document.execCommand('copy');
+            const originalText = copyButton.textContent;
+            copyButton.textContent = '✓';
+            setTimeout(() => {
+                copyButton.textContent = originalText;
+            }, 1000);
+        }
     }
 });
 

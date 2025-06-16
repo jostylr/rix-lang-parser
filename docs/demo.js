@@ -2225,6 +2225,7 @@ var modalContent = document.getElementById("modal-content");
 var modalCloseButton = document.getElementById("modal-close");
 var closeButton = document.querySelector(".close-button");
 var examplesDropdown = document.getElementById("examples-dropdown");
+var copyButton = document.getElementById("copy-button");
 var clearButton = document.getElementById("clear-button");
 var tabButtons = document.querySelectorAll(".tab-button");
 var tabPanels = document.querySelectorAll(".tab-panel");
@@ -2321,7 +2322,16 @@ function createTreeNode(node, nodeName = null, isRoot = false) {
     const childrenContainer = document.createElement("div");
     childrenContainer.className = "node-children expanded";
     compactContent.children.forEach(({ key, value }) => {
-      childrenContainer.appendChild(createTreeNode(value, key, false));
+      const childWrapper = document.createElement("div");
+      childWrapper.className = "child-wrapper";
+      const keyLabel = document.createElement("span");
+      keyLabel.className = "key-label";
+      keyLabel.textContent = `${key.toUpperCase()}:`;
+      childWrapper.appendChild(keyLabel);
+      const childNode = createTreeNode(value, key, false);
+      childNode.style.display = "inline-block";
+      childWrapper.appendChild(childNode);
+      childrenContainer.appendChild(childWrapper);
     });
     treeNode.appendChild(childrenContainer);
   }
@@ -2468,15 +2478,30 @@ function showPlaceholder() {
 }
 examplesDropdown.addEventListener("change", (e) => {
   if (e.target.value) {
-    const currentValue = inputExpression.value.trim();
-    if (currentValue) {
-      inputExpression.value = currentValue + `
-` + e.target.value;
-    } else {
-      inputExpression.value = e.target.value;
-    }
+    inputExpression.value = e.target.value;
     e.target.selectedIndex = 0;
     parseExpression();
+  }
+});
+copyButton.addEventListener("click", async () => {
+  const text = inputExpression.value;
+  if (text.trim()) {
+    try {
+      await navigator.clipboard.writeText(text);
+      const originalText = copyButton.textContent;
+      copyButton.textContent = "✓";
+      setTimeout(() => {
+        copyButton.textContent = originalText;
+      }, 1000);
+    } catch (err) {
+      inputExpression.select();
+      document.execCommand("copy");
+      const originalText = copyButton.textContent;
+      copyButton.textContent = "✓";
+      setTimeout(() => {
+        copyButton.textContent = originalText;
+      }, 1000);
+    }
   }
 });
 clearButton.addEventListener("click", () => {

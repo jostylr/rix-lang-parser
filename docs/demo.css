@@ -218,11 +218,22 @@ main {
     display: block;
 }
 
+/* Section Header */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.section-header h2 {
+    margin: 0;
+}
+
 /* Input Controls */
 .input-controls {
     display: flex;
     gap: 0.5rem;
-    margin-bottom: 1rem;
     align-items: center;
 }
 
@@ -243,6 +254,7 @@ main {
     outline: none;
 }
 
+.copy-button,
 .clear-button {
     padding: 0.5rem;
     background-color: var(--bg-color);
@@ -258,9 +270,33 @@ main {
     height: 40px;
 }
 
+.copy-button:hover {
+    background-color: var(--success-bg);
+    border-color: var(--success-border);
+}
+
 .clear-button:hover {
     background-color: var(--error-bg);
     border-color: var(--error-border);
+}
+
+/* Key Labels in AST */
+.key-label {
+    color: #000000;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-right: 0.5rem;
+    font-size: 0.8em;
+}
+
+.child-wrapper {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 0.25rem;
+}
+
+.child-wrapper .tree-node {
+    margin-left: 0;
 }
 
 /* Tree View */
