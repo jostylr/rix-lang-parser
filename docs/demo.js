@@ -2219,13 +2219,13 @@ var astTree = document.getElementById("ast-tree");
 var tokensList = document.getElementById("tokens-list");
 var rawOutput = document.getElementById("raw-output");
 var diagnosticsContent = document.getElementById("diagnostics-content");
-var expandAllButton = document.getElementById("expand-all");
-var collapseAllButton = document.getElementById("collapse-all");
 var nodeModal = document.getElementById("node-modal");
 var modalTitle = document.getElementById("modal-title");
 var modalContent = document.getElementById("modal-content");
 var modalCloseButton = document.getElementById("modal-close");
 var closeButton = document.querySelector(".close-button");
+var examplesDropdown = document.getElementById("examples-dropdown");
+var clearButton = document.getElementById("clear-button");
 var tabButtons = document.querySelectorAll(".tab-button");
 var tabPanels = document.querySelectorAll(".tab-panel");
 tabButtons.forEach((button) => {
@@ -2466,23 +2466,23 @@ function showPlaceholder() {
   rawOutput.textContent = "Parse an expression to see raw output";
   diagnosticsContent.innerHTML = '<p class="placeholder">No errors or warnings</p>';
 }
-expandAllButton.addEventListener("click", () => {
-  document.querySelectorAll(".node-children").forEach((children) => {
-    children.classList.add("expanded");
-    const toggle = children.previousElementSibling.querySelector(".node-toggle");
-    if (toggle.textContent === "▶") {
-      toggle.textContent = "▼";
+examplesDropdown.addEventListener("change", (e) => {
+  if (e.target.value) {
+    const currentValue = inputExpression.value.trim();
+    if (currentValue) {
+      inputExpression.value = currentValue + `
+` + e.target.value;
+    } else {
+      inputExpression.value = e.target.value;
     }
-  });
+    e.target.selectedIndex = 0;
+    parseExpression();
+  }
 });
-collapseAllButton.addEventListener("click", () => {
-  document.querySelectorAll(".node-children").forEach((children) => {
-    children.classList.remove("expanded");
-    const toggle = children.previousElementSibling.querySelector(".node-toggle");
-    if (toggle.textContent === "▼") {
-      toggle.textContent = "▶";
-    }
-  });
+clearButton.addEventListener("click", () => {
+  inputExpression.value = "";
+  showPlaceholder();
+  inputExpression.focus();
 });
 function closeModal() {
   nodeModal.classList.remove("show");

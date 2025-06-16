@@ -26,6 +26,24 @@
             <div class="demo-container">
                 <div class="input-section">
                     <h2>Input Expression</h2>
+                    <div class="input-controls">
+                        <select id="examples-dropdown" class="examples-dropdown">
+                            <option value="">Examples...</option>
+                            <option value="2 + 3 * (4 - 1)">Basic Arithmetic</option>
+                            <option value="x := 42">Assignment</option>
+                            <option value="f(x, n := 2) -> x^n + 1">Function Definition</option>
+                            <option value="2:5">Interval</option>
+                            <option value="9.8~[m/s^2]">Scientific Units</option>
+                            <option value="3 + 4~{i}">Mathematical Units</option>
+                            <option value="[1 |+ 2 |^ 10]">Array Generator</option>
+                            <option value="[1, 2; 3, 4]">Matrix</option>
+                            <option value="x > 0 ?? x ?: -x">Ternary Operator</option>
+                            <option value="SIN(PI / 2)">System Function</option>
+                        </select>
+                        <button id="clear-button" class="clear-button" title="Clear input">
+                            🗑️
+                        </button>
+                    </div>
                     <textarea
                         id="input-expression"
                         placeholder="Enter a RiX expression here..."
@@ -34,7 +52,7 @@
 2 + 3 * (4 - 1)</textarea
                     >
                     <button id="parse-button" class="primary-button">
-                        Parse Expression
+                        Parse Expression (Shift+Enter)
                     </button>
                 </div>
 
@@ -53,17 +71,6 @@
 
                     <div class="tab-content">
                         <div id="ast-tab" class="tab-panel active">
-                            <div class="controls">
-                                <button id="expand-all" class="control-button">
-                                    Expand All
-                                </button>
-                                <button
-                                    id="collapse-all"
-                                    class="control-button"
-                                >
-                                    Collapse All
-                                </button>
-                            </div>
                             <div id="ast-tree" class="tree-view">
                                 <p class="placeholder">
                                     Parse an expression to see the AST

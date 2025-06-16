@@ -7,13 +7,13 @@ const astTree = document.getElementById('ast-tree');
 const tokensList = document.getElementById('tokens-list');
 const rawOutput = document.getElementById('raw-output');
 const diagnosticsContent = document.getElementById('diagnostics-content');
-const expandAllButton = document.getElementById('expand-all');
-const collapseAllButton = document.getElementById('collapse-all');
 const nodeModal = document.getElementById('node-modal');
 const modalTitle = document.getElementById('modal-title');
 const modalContent = document.getElementById('modal-content');
 const modalCloseButton = document.getElementById('modal-close');
 const closeButton = document.querySelector('.close-button');
+const examplesDropdown = document.getElementById('examples-dropdown');
+const clearButton = document.getElementById('clear-button');
 
 // Tab functionality
 const tabButtons = document.querySelectorAll('.tab-button');
@@ -352,25 +352,28 @@ function showPlaceholder() {
     diagnosticsContent.innerHTML = '<p class="placeholder">No errors or warnings</p>';
 }
 
-// Expand/Collapse all functionality
-expandAllButton.addEventListener('click', () => {
-    document.querySelectorAll('.node-children').forEach(children => {
-        children.classList.add('expanded');
-        const toggle = children.previousElementSibling.querySelector('.node-toggle');
-        if (toggle.textContent === '▶') {
-            toggle.textContent = '▼';
+// Examples dropdown functionality
+examplesDropdown.addEventListener('change', (e) => {
+    if (e.target.value) {
+        // Append to existing content if there's any, otherwise replace
+        const currentValue = inputExpression.value.trim();
+        if (currentValue) {
+            inputExpression.value = currentValue + '\n' + e.target.value;
+        } else {
+            inputExpression.value = e.target.value;
         }
-    });
+        // Reset dropdown to placeholder
+        e.target.selectedIndex = 0;
+        // Auto-parse the new content
+        parseExpression();
+    }
 });
 
-collapseAllButton.addEventListener('click', () => {
-    document.querySelectorAll('.node-children').forEach(children => {
-        children.classList.remove('expanded');
-        const toggle = children.previousElementSibling.querySelector('.node-toggle');
-        if (toggle.textContent === '▼') {
-            toggle.textContent = '▶';
-        }
-    });
+// Clear button functionality
+clearButton.addEventListener('click', () => {
+    inputExpression.value = '';
+    showPlaceholder();
+    inputExpression.focus();
 });
 
 // Modal functionality

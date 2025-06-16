@@ -218,25 +218,49 @@ main {
     display: block;
 }
 
-/* Controls */
-.controls {
-    margin-bottom: 1rem;
+/* Input Controls */
+.input-controls {
     display: flex;
     gap: 0.5rem;
+    margin-bottom: 1rem;
+    align-items: center;
 }
 
-.control-button {
-    padding: 0.5rem 1rem;
-    background-color: var(--code-bg);
+.examples-dropdown {
+    padding: 0.5rem;
+    background-color: var(--bg-color);
     border: 1px solid var(--border-color);
     border-radius: 0.25rem;
     font-size: 0.875rem;
     cursor: pointer;
-    transition: all 0.2s;
+    min-width: 200px;
+    transition: border-color 0.2s;
 }
 
-.control-button:hover {
-    background-color: var(--border-color);
+.examples-dropdown:hover,
+.examples-dropdown:focus {
+    border-color: var(--primary-color);
+    outline: none;
+}
+
+.clear-button {
+    padding: 0.5rem;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 0.25rem;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 40px;
+}
+
+.clear-button:hover {
+    background-color: var(--error-bg);
+    border-color: var(--error-border);
 }
 
 /* Tree View */
