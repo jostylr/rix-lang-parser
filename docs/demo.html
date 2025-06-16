@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>RiX Parser Demo - Interactive AST Visualization</title>
+        <link rel="stylesheet" href="demo.css" />
+    </head>
+    <body>
+        <header>
+            <div class="header-content">
+                <a href="./" class="logo">
+                    <img src="./rix-logo.png" alt="RiX Logo" />
+                    <h1>RiX Parser Demo</h1>
+                </a>
+                <nav>
+                    <a href="/">Home</a>
+                    <a href="/docs.html">Documentation</a>
+                    <a href="/demo.html" class="active">Demo</a>
+                    <a href="https://github.com/rix-lang/parser">GitHub</a>
+                </nav>
+            </div>
+        </header>
+
+        <main>
+            <div class="demo-container">
+                <div class="input-section">
+                    <h2>Input Expression</h2>
+                    <textarea
+                        id="input-expression"
+                        placeholder="Enter a RiX expression here..."
+                        rows="5"
+                    >
+2 + 3 * (4 - 1)</textarea
+                    >
+                    <button id="parse-button" class="primary-button">
+                        Parse Expression
+                    </button>
+                </div>
+
+                <div class="output-section">
+                    <div class="tabs">
+                        <button class="tab-button active" data-tab="ast">
+                            AST View
+                        </button>
+                        <button class="tab-button" data-tab="tokens">
+                            Tokens
+                        </button>
+                        <button class="tab-button" data-tab="raw">
+                            Raw Output
+                        </button>
+                    </div>
+
+                    <div class="tab-content">
+                        <div id="ast-tab" class="tab-panel active">
+                            <div class="controls">
+                                <button id="expand-all" class="control-button">
+                                    Expand All
+                                </button>
+                                <button
+                                    id="collapse-all"
+                                    class="control-button"
+                                >
+                                    Collapse All
+                                </button>
+                            </div>
+                            <div id="ast-tree" class="tree-view">
+                                <p class="placeholder">
+                                    Parse an expression to see the AST
+                                </p>
+                            </div>
+                        </div>
+
+                        <div id="tokens-tab" class="tab-panel">
+                            <div id="tokens-list" class="tokens-view">
+                                <p class="placeholder">
+                                    Parse an expression to see tokens
+                                </p>
+                            </div>
+                        </div>
+
+                        <div id="raw-tab" class="tab-panel">
+                            <pre id="raw-output" class="raw-view">
+Parse an expression to see raw output</pre
+                            >
+                        </div>
+                    </div>
+
+                    <div id="errors-warnings" class="diagnostics">
+                        <h3>Diagnostics</h3>
+                        <div id="diagnostics-content">
+                            <p class="placeholder">No errors or warnings</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Modal for detailed node view -->
+        <div id="node-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="modal-title">Node Details</h2>
+                    <button class="close-button">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <pre id="modal-content"></pre>
+                </div>
+                <div class="modal-footer">
+                    <button id="modal-close" class="primary-button">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>&copy; 2024 RiX Language Team. Licensed under MIT.</p>
+        </footer>
+
+        <script src="demo.js"></script>
+    </body>
+</html>

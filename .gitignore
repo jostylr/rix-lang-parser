@@ -69,3 +69,5 @@ bun-debug.log*
 
 # Custom ignore folder
 ignore/
+
+.claude/

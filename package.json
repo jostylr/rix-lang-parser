@@ -19,7 +19,11 @@
     "test": "bun test",
     "test:tokenizer": "bun test tests/tokenizer.test.js",
     "test:parser": "bun test tests/parser.test.js",
-    "test:generators": "bun test tests/array-generators*.test.js"
+    "test:generators": "bun test tests/array-generators*.test.js",
+    "build:demo": "bun build ./docs/src/demo.js --outfile ./docs/demo.js --target browser",
+    "dev:demo": "bun build ./docs/src/demo.js --outfile ./docs/demo.js --target browser --watch",
+    "build:docs": "node ./docs/build-docs.js",
+    "build:all": "bun run build:demo && bun run build:docs"
   },
   "keywords": [
     "parser",
@@ -52,6 +56,10 @@
     "rix-logo.png"
   ],
   "engines": {
+    "bun":">=1.2.0",
     "node": ">=16.0.0"
+  },
+  "devDependencies": {
+    "marked": "^15.0.12"
   }
 }
