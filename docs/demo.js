@@ -2241,6 +2241,9 @@ parseButton.addEventListener("click", parseExpression);
 inputExpression.addEventListener("keydown", (e) => {
   if (e.ctrlKey && e.key === "Enter") {
     parseExpression();
+  } else if (e.shiftKey && e.key === "Enter") {
+    e.preventDefault();
+    parseExpression();
   }
 });
 function parseExpression() {
@@ -2277,87 +2280,156 @@ function displayAST(ast) {
   const rootNode = createTreeNode(ast, "Program");
   astTree.appendChild(rootNode);
 }
-function createTreeNode(node, nodeName = null) {
+function createTreeNode(node, nodeName = null, isRoot = false) {
   const treeNode = document.createElement("div");
   treeNode.className = "tree-node";
   const header = document.createElement("div");
   header.className = "node-header";
-  const toggle = document.createElement("span");
-  toggle.className = "node-toggle";
-  const hasChildren = node && typeof node === "object" && (Array.isArray(node) ? node.length > 0 : Object.keys(node).length > 0);
-  toggle.textContent = hasChildren ? "▶" : "○";
-  header.appendChild(toggle);
-  const nodeType = document.createElement("span");
-  nodeType.className = "node-type";
-  nodeType.textContent = nodeName || node.type || "Node";
-  header.appendChild(nodeType);
-  if (node && typeof node !== "object") {
-    const nodeValue = document.createElement("span");
-    nodeValue.className = "node-value";
-    nodeValue.textContent = String(node);
-    header.appendChild(nodeValue);
-  } else if (node && node.value !== undefined) {
-    const nodeValue = document.createElement("span");
-    nodeValue.className = "node-value";
-    nodeValue.textContent = String(node.value);
-    header.appendChild(nodeValue);
-  }
-  if (hasChildren) {
-    const preview = document.createElement("span");
-    preview.className = "node-preview";
-    preview.textContent = getNodePreview(node);
-    header.appendChild(preview);
+  const compactContent = createCompactNodeDisplay(node, nodeName);
+  header.appendChild(compactContent.main);
+  if (compactContent.hasMetadata) {
+    const metaToggle = document.createElement("span");
+    metaToggle.className = "meta-toggle";
+    metaToggle.textContent = "▼";
+    metaToggle.title = "Show/hide original and position data";
+    header.appendChild(metaToggle);
+    const metaContainer = document.createElement("div");
+    metaContainer.className = "metadata-container";
+    metaContainer.style.display = "none";
+    if (node && typeof node === "object" && node.original) {
+      const originalDiv = document.createElement("div");
+      originalDiv.className = "metadata-item";
+      originalDiv.innerHTML = `<strong>original:</strong> "${escapeHtml(node.original)}"`;
+      metaContainer.appendChild(originalDiv);
+    }
+    if (node && typeof node === "object" && node.pos) {
+      const posDiv = document.createElement("div");
+      posDiv.className = "metadata-item";
+      posDiv.innerHTML = `<strong>pos:</strong> [${node.pos.join(", ")}]`;
+      metaContainer.appendChild(posDiv);
+    }
+    treeNode.appendChild(metaContainer);
+    metaToggle.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isHidden = metaContainer.style.display === "none";
+      metaContainer.style.display = isHidden ? "block" : "none";
+      metaToggle.textContent = isHidden ? "▲" : "▼";
+    });
   }
   treeNode.appendChild(header);
-  if (hasChildren) {
+  if (compactContent.children && compactContent.children.length > 0) {
     const childrenContainer = document.createElement("div");
-    childrenContainer.className = "node-children";
-    if (Array.isArray(node)) {
-      node.forEach((child, index) => {
-        childrenContainer.appendChild(createTreeNode(child, `[${index}]`));
-      });
-    } else {
-      Object.entries(node).forEach(([key, value]) => {
-        if (value !== null && value !== undefined) {
-          childrenContainer.appendChild(createTreeNode(value, key));
-        }
-      });
-    }
+    childrenContainer.className = "node-children expanded";
+    compactContent.children.forEach(({ key, value }) => {
+      childrenContainer.appendChild(createTreeNode(value, key, false));
+    });
     treeNode.appendChild(childrenContainer);
-    header.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (childrenContainer.classList.contains("expanded")) {
-        childrenContainer.classList.remove("expanded");
-        toggle.textContent = "▶";
-      } else {
-        childrenContainer.classList.add("expanded");
-        toggle.textContent = "▼";
-      }
-    });
-    header.addEventListener("dblclick", (e) => {
-      e.stopPropagation();
-      showNodeModal(node, nodeName || node.type || "Node");
-    });
   }
   return treeNode;
 }
-function getNodePreview(node) {
-  if (Array.isArray(node)) {
-    return `[${node.length} items]`;
+function createCompactNodeDisplay(node, nodeName) {
+  const mainDiv = document.createElement("div");
+  mainDiv.className = "compact-node";
+  let children = [];
+  let hasMetadata = false;
+  if (!node || typeof node !== "object") {
+    const typeSpan2 = document.createElement("span");
+    typeSpan2.className = "node-type";
+    typeSpan2.textContent = nodeName || typeof node;
+    mainDiv.appendChild(typeSpan2);
+    const colonSpan2 = document.createElement("span");
+    colonSpan2.textContent = ": ";
+    mainDiv.appendChild(colonSpan2);
+    const valueSpan = document.createElement("span");
+    valueSpan.className = "node-value";
+    valueSpan.textContent = String(node);
+    mainDiv.appendChild(valueSpan);
+    return { main: mainDiv, children, hasMetadata };
   }
-  const keys = Object.keys(node).filter((k) => k !== "type" && node[k] !== null);
-  if (keys.length === 0)
-    return "";
-  const preview = keys.slice(0, 3).map((k) => {
-    const value = node[k];
-    if (value === null || value === undefined)
-      return null;
-    if (typeof value === "object") {
-      return `${k}: {...}`;
+  if (Array.isArray(node)) {
+    const typeSpan2 = document.createElement("span");
+    typeSpan2.className = "node-type";
+    typeSpan2.textContent = nodeName || "Array";
+    mainDiv.appendChild(typeSpan2);
+    const colonSpan2 = document.createElement("span");
+    colonSpan2.textContent = ": ";
+    mainDiv.appendChild(colonSpan2);
+    const valueSpan = document.createElement("span");
+    valueSpan.className = "node-value";
+    valueSpan.textContent = `[${node.length} items]`;
+    mainDiv.appendChild(valueSpan);
+    children = node.map((item, index) => ({ key: `[${index}]`, value: item }));
+    return { main: mainDiv, children, hasMetadata };
+  }
+  const nodeType = node.type || nodeName || "Node";
+  const typeSpan = document.createElement("span");
+  typeSpan.className = "node-type";
+  typeSpan.textContent = nodeType;
+  mainDiv.appendChild(typeSpan);
+  const colonSpan = document.createElement("span");
+  colonSpan.textContent = ": ";
+  mainDiv.appendChild(colonSpan);
+  const identifyingInfo = getNodeIdentifyingInfo(node);
+  if (identifyingInfo.value) {
+    const valueSpan = document.createElement("span");
+    valueSpan.className = "node-value";
+    valueSpan.textContent = identifyingInfo.value;
+    mainDiv.appendChild(valueSpan);
+    if (identifyingInfo.key) {
+      const keySpan = document.createElement("span");
+      keySpan.className = "node-key";
+      keySpan.textContent = ` (${identifyingInfo.key})`;
+      mainDiv.appendChild(keySpan);
     }
-    return `${k}: ${String(value).slice(0, 20)}`;
-  }).filter(Boolean).join(", ");
-  return `{${preview}${keys.length > 3 ? ", ..." : ""}}`;
+  }
+  hasMetadata = !!(node.original || node.pos);
+  const relevantProps = Object.keys(node).filter((key) => key !== "type" && key !== "original" && key !== "pos" && key !== identifyingInfo.key && node[key] !== null && node[key] !== undefined);
+  children = relevantProps.map((key) => ({ key, value: node[key] }));
+  return { main: mainDiv, children, hasMetadata };
+}
+function getNodeIdentifyingInfo(node) {
+  switch (node.type) {
+    case "Number":
+      return { value: node.value, key: "value" };
+    case "String":
+      return { value: `"${node.value}"`, key: "value" };
+    case "UserIdentifier":
+    case "SystemIdentifier":
+      return { value: node.name, key: "name" };
+    case "BinaryOperation":
+    case "UnaryOperation":
+      return { value: node.operator, key: "operator" };
+    case "PlaceHolder":
+      return { value: `_${node.place}`, key: "place" };
+    case "Array":
+      return { value: node.elements ? `[${node.elements.length} items]` : "[]", key: null };
+    case "Matrix":
+      return { value: node.rows ? `${node.rows.length}×${node.rows[0]?.length || 0} matrix` : "matrix", key: null };
+    case "FunctionCall":
+      return { value: `${node.function?.name || "function"}()`, key: null };
+    case "FunctionDefinition":
+      return { value: `${node.name?.name || "function"} := ...`, key: null };
+    case "Derivative":
+      return { value: `${"'".repeat(node.order || 1)}`, key: "order" };
+    case "Integral":
+      return { value: `${"'".repeat(node.order || 1)}`, key: "order" };
+    case "ScientificUnit":
+      return { value: `~[${node.unit}]`, key: "unit" };
+    case "MathematicalUnit":
+      return { value: `~{${node.unit}}`, key: "unit" };
+    case "TernaryOperation":
+      return { value: "?? ?: ", key: null };
+    case "GeneratorChain":
+      return { value: `${node.operators?.length || 0} generators`, key: null };
+    default:
+      if (node.value !== undefined)
+        return { value: String(node.value), key: "value" };
+      if (node.name !== undefined)
+        return { value: String(node.name), key: "name" };
+      if (node.operator !== undefined)
+        return { value: String(node.operator), key: "operator" };
+      return { value: "", key: null };
+  }
 }
 function displayRaw(ast) {
   rawOutput.textContent = JSON.stringify(ast, null, 2);
@@ -2412,11 +2484,6 @@ collapseAllButton.addEventListener("click", () => {
     }
   });
 });
-function showNodeModal(node, title) {
-  modalTitle.textContent = title;
-  modalContent.textContent = JSON.stringify(node, null, 2);
-  nodeModal.classList.add("show");
-}
 function closeModal() {
   nodeModal.classList.remove("show");
 }
@@ -2435,3 +2502,13 @@ function escapeHtml(text) {
 if (inputExpression.value.trim()) {
   parseExpression();
 }
+document.addEventListener("DOMContentLoaded", () => {
+  tabButtons.forEach((btn) => btn.classList.remove("active"));
+  tabPanels.forEach((panel) => panel.classList.remove("active"));
+  const astButton = document.querySelector('[data-tab="ast"]');
+  const astPanel = document.getElementById("ast-tab");
+  if (astButton && astPanel) {
+    astButton.classList.add("active");
+    astPanel.classList.add("active");
+  }
+});

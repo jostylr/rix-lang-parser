@@ -37,6 +37,9 @@ parseButton.addEventListener('click', parseExpression);
 inputExpression.addEventListener('keydown', (e) => {
     if (e.ctrlKey && e.key === 'Enter') {
         parseExpression();
+    } else if (e.shiftKey && e.key === 'Enter') {
+        e.preventDefault();
+        parseExpression();
     }
 });
 
@@ -85,89 +88,205 @@ function displayAST(ast) {
     astTree.appendChild(rootNode);
 }
 
-function createTreeNode(node, nodeName = null) {
+function createTreeNode(node, nodeName = null, isRoot = false) {
     const treeNode = document.createElement('div');
     treeNode.className = 'tree-node';
-
+    
     const header = document.createElement('div');
     header.className = 'node-header';
-
-    const toggle = document.createElement('span');
-    toggle.className = 'node-toggle';
-
-    const hasChildren = node && typeof node === 'object' &&
-                       (Array.isArray(node) ? node.length > 0 : Object.keys(node).length > 0);
-
-    toggle.textContent = hasChildren ? '▶' : '○';
-    header.appendChild(toggle);
-
-    const nodeType = document.createElement('span');
-    nodeType.className = 'node-type';
-    nodeType.textContent = nodeName || node.type || 'Node';
-    header.appendChild(nodeType);
-
-    // Add value or preview
-    if (node && typeof node !== 'object') {
-        const nodeValue = document.createElement('span');
-        nodeValue.className = 'node-value';
-        nodeValue.textContent = String(node);
-        header.appendChild(nodeValue);
-    } else if (node && node.value !== undefined) {
-        const nodeValue = document.createElement('span');
-        nodeValue.className = 'node-value';
-        nodeValue.textContent = String(node.value);
-        header.appendChild(nodeValue);
-    }
-
-    // Add preview for complex nodes
-    if (hasChildren) {
-        const preview = document.createElement('span');
-        preview.className = 'node-preview';
-        preview.textContent = getNodePreview(node);
-        header.appendChild(preview);
-    }
-
-    treeNode.appendChild(header);
-
-    // Add children container
-    if (hasChildren) {
-        const childrenContainer = document.createElement('div');
-        childrenContainer.className = 'node-children';
-
-        if (Array.isArray(node)) {
-            node.forEach((child, index) => {
-                childrenContainer.appendChild(createTreeNode(child, `[${index}]`));
-            });
-        } else {
-            Object.entries(node).forEach(([key, value]) => {
-                if (value !== null && value !== undefined) {
-                    childrenContainer.appendChild(createTreeNode(value, key));
-                }
-            });
+    
+    // Create compact display
+    const compactContent = createCompactNodeDisplay(node, nodeName);
+    header.appendChild(compactContent.main);
+    
+    // Add metadata toggle if there are metadata properties
+    if (compactContent.hasMetadata) {
+        const metaToggle = document.createElement('span');
+        metaToggle.className = 'meta-toggle';
+        metaToggle.textContent = '▼';
+        metaToggle.title = 'Show/hide original and position data';
+        header.appendChild(metaToggle);
+        
+        const metaContainer = document.createElement('div');
+        metaContainer.className = 'metadata-container';
+        metaContainer.style.display = 'none';
+        
+        if (node && typeof node === 'object' && node.original) {
+            const originalDiv = document.createElement('div');
+            originalDiv.className = 'metadata-item';
+            originalDiv.innerHTML = `<strong>original:</strong> "${escapeHtml(node.original)}"`;
+            metaContainer.appendChild(originalDiv);
         }
-
-        treeNode.appendChild(childrenContainer);
-
-        // Toggle functionality
-        header.addEventListener('click', (e) => {
+        
+        if (node && typeof node === 'object' && node.pos) {
+            const posDiv = document.createElement('div');
+            posDiv.className = 'metadata-item';
+            posDiv.innerHTML = `<strong>pos:</strong> [${node.pos.join(', ')}]`;
+            metaContainer.appendChild(posDiv);
+        }
+        
+        treeNode.appendChild(metaContainer);
+        
+        metaToggle.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (childrenContainer.classList.contains('expanded')) {
-                childrenContainer.classList.remove('expanded');
-                toggle.textContent = '▶';
-            } else {
-                childrenContainer.classList.add('expanded');
-                toggle.textContent = '▼';
-            }
-        });
-
-        // Double click to show modal
-        header.addEventListener('dblclick', (e) => {
-            e.stopPropagation();
-            showNodeModal(node, nodeName || node.type || 'Node');
+            const isHidden = metaContainer.style.display === 'none';
+            metaContainer.style.display = isHidden ? 'block' : 'none';
+            metaToggle.textContent = isHidden ? '▲' : '▼';
         });
     }
-
+    
+    treeNode.appendChild(header);
+    
+    // Add children if any
+    if (compactContent.children && compactContent.children.length > 0) {
+        const childrenContainer = document.createElement('div');
+        childrenContainer.className = 'node-children expanded'; // Default to expanded
+        
+        compactContent.children.forEach(({key, value}) => {
+            childrenContainer.appendChild(createTreeNode(value, key, false));
+        });
+        
+        treeNode.appendChild(childrenContainer);
+    }
+    
     return treeNode;
+}
+
+function createCompactNodeDisplay(node, nodeName) {
+    const mainDiv = document.createElement('div');
+    mainDiv.className = 'compact-node';
+    
+    let children = [];
+    let hasMetadata = false;
+    
+    if (!node || typeof node !== 'object') {
+        // Primitive value
+        const typeSpan = document.createElement('span');
+        typeSpan.className = 'node-type';
+        typeSpan.textContent = nodeName || typeof node;
+        mainDiv.appendChild(typeSpan);
+        
+        const colonSpan = document.createElement('span');
+        colonSpan.textContent = ': ';
+        mainDiv.appendChild(colonSpan);
+        
+        const valueSpan = document.createElement('span');
+        valueSpan.className = 'node-value';
+        valueSpan.textContent = String(node);
+        mainDiv.appendChild(valueSpan);
+        
+        return { main: mainDiv, children, hasMetadata };
+    }
+    
+    if (Array.isArray(node)) {
+        // Array
+        const typeSpan = document.createElement('span');
+        typeSpan.className = 'node-type';
+        typeSpan.textContent = nodeName || 'Array';
+        mainDiv.appendChild(typeSpan);
+        
+        const colonSpan = document.createElement('span');
+        colonSpan.textContent = ': ';
+        mainDiv.appendChild(colonSpan);
+        
+        const valueSpan = document.createElement('span');
+        valueSpan.className = 'node-value';
+        valueSpan.textContent = `[${node.length} items]`;
+        mainDiv.appendChild(valueSpan);
+        
+        children = node.map((item, index) => ({key: `[${index}]`, value: item}));
+        
+        return { main: mainDiv, children, hasMetadata };
+    }
+    
+    // AST Node
+    const nodeType = node.type || nodeName || 'Node';
+    
+    const typeSpan = document.createElement('span');
+    typeSpan.className = 'node-type';
+    typeSpan.textContent = nodeType;
+    mainDiv.appendChild(typeSpan);
+    
+    const colonSpan = document.createElement('span');
+    colonSpan.textContent = ': ';
+    mainDiv.appendChild(colonSpan);
+    
+    // Get identifying value for this node type
+    const identifyingInfo = getNodeIdentifyingInfo(node);
+    if (identifyingInfo.value) {
+        const valueSpan = document.createElement('span');
+        valueSpan.className = 'node-value';
+        valueSpan.textContent = identifyingInfo.value;
+        mainDiv.appendChild(valueSpan);
+        
+        // Add the property key in parentheses if available
+        if (identifyingInfo.key) {
+            const keySpan = document.createElement('span');
+            keySpan.className = 'node-key';
+            keySpan.textContent = ` (${identifyingInfo.key})`;
+            mainDiv.appendChild(keySpan);
+        }
+    }
+    
+    // Check for metadata (original, pos)
+    hasMetadata = !!(node.original || node.pos);
+    
+    // Get relevant child properties (excluding original, pos, type, and the identifying property)
+    const relevantProps = Object.keys(node).filter(key => 
+        key !== 'type' && 
+        key !== 'original' && 
+        key !== 'pos' && 
+        key !== identifyingInfo.key && // Exclude the identifying property
+        node[key] !== null && 
+        node[key] !== undefined
+    );
+    
+    children = relevantProps.map(key => ({key, value: node[key]}));
+    
+    return { main: mainDiv, children, hasMetadata };
+}
+
+function getNodeIdentifyingInfo(node) {
+    // Return an identifying value and property key for common node types
+    switch (node.type) {
+        case 'Number':
+            return { value: node.value, key: 'value' };
+        case 'String':
+            return { value: `"${node.value}"`, key: 'value' };
+        case 'UserIdentifier':
+        case 'SystemIdentifier':
+            return { value: node.name, key: 'name' };
+        case 'BinaryOperation':
+        case 'UnaryOperation':
+            return { value: node.operator, key: 'operator' };
+        case 'PlaceHolder':
+            return { value: `_${node.place}`, key: 'place' };
+        case 'Array':
+            return { value: node.elements ? `[${node.elements.length} items]` : '[]', key: null };
+        case 'Matrix':
+            return { value: node.rows ? `${node.rows.length}×${node.rows[0]?.length || 0} matrix` : 'matrix', key: null };
+        case 'FunctionCall':
+            return { value: `${node.function?.name || 'function'}()`, key: null };
+        case 'FunctionDefinition':
+            return { value: `${node.name?.name || 'function'} := ...`, key: null };
+        case 'Derivative':
+            return { value: `${"'".repeat(node.order || 1)}`, key: 'order' };
+        case 'Integral':
+            return { value: `${"'".repeat(node.order || 1)}`, key: 'order' };
+        case 'ScientificUnit':
+            return { value: `~[${node.unit}]`, key: 'unit' };
+        case 'MathematicalUnit':
+            return { value: `~{${node.unit}}`, key: 'unit' };
+        case 'TernaryOperation':
+            return { value: '?? ?: ', key: null };
+        case 'GeneratorChain':
+            return { value: `${node.operators?.length || 0} generators`, key: null };
+        default:
+            if (node.value !== undefined) return { value: String(node.value), key: 'value' };
+            if (node.name !== undefined) return { value: String(node.name), key: 'name' };
+            if (node.operator !== undefined) return { value: String(node.operator), key: 'operator' };
+            return { value: '', key: null };
+    }
 }
 
 function getNodePreview(node) {
@@ -280,7 +399,22 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Parse initial expression if provided
+// Parse initial expression if provided and ensure AST tab is active
 if (inputExpression.value.trim()) {
     parseExpression();
 }
+
+// Ensure AST tab is active by default
+document.addEventListener('DOMContentLoaded', () => {
+    // Set AST tab as active
+    tabButtons.forEach((btn) => btn.classList.remove('active'));
+    tabPanels.forEach((panel) => panel.classList.remove('active'));
+    
+    const astButton = document.querySelector('[data-tab="ast"]');
+    const astPanel = document.getElementById('ast-tab');
+    
+    if (astButton && astPanel) {
+        astButton.classList.add('active');
+        astPanel.classList.add('active');
+    }
+});
